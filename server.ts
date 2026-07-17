@@ -87,7 +87,7 @@ let localAppSettings: any = {
 
 async function startServer() {
   const app = express();
-  const PORT = 3000;
+  const PORT = process.env.PORT || 3000;
 
   app.use(express.json({ limit: '50mb' }));
   app.use(express.urlencoded({ limit: '50mb', extended: true }));
@@ -1833,6 +1833,7 @@ async function processTransactionSafe(orderId, isSuccess, method, amount) {
   } else {
     const distPath = path.join(process.cwd(), 'dist');
     app.use(express.static(distPath));
+    app.use(express.static(path.join(process.cwd(), 'public')));
     app.get('*', (req, res) => {
       res.sendFile(path.join(distPath, 'index.html'));
     });
