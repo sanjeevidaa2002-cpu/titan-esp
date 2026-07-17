@@ -34,6 +34,8 @@ import {
   deleteDoc
 } from 'firebase/firestore';
 import { 
+  BonusSettings,
+  BonusHistory,
   UserProfile, 
   Tournament, 
   Transaction, 
@@ -69,6 +71,7 @@ interface GameContextProps {
   transactions: Transaction[];
   notifications: AppNotification[];
   leaderboard: LeaderboardEntry[];
+  bonusSettings: BonusSettings | null;
   loading: boolean;
   error: string | null;
   registrations: PlayerRegistration[];
@@ -139,6 +142,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [notifications, setNotifications] = useState<AppNotification[]>(MOCK_NOTIFICATIONS);
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>(MOCK_LEADERBOARD);
+  const [bonusSettings, setBonusSettings] = useState<BonusSettings | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [useLocalFallback, setUseLocalFallback] = useState<boolean>(false);
@@ -357,6 +361,17 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       );
 
+      // Realtime bonus listener
+      const unsubBonusSettings = onSnapshot(doc(db, 'appSettings', 'bonus'), (docSnap) => {
+        if (docSnap.exists()) {
+          setBonusSettings(docSnap.data());
+        } else {
+          setBonusSettings(null);
+        }
+      }, (err) => {
+        console.warn("Bonus settings sync error:", err);
+      });
+
       // Realtime leaderboard listener
       const unsubLeaderboard = onSnapshot(collection(db, 'leaderboard'),
         (snapshot) => {
@@ -497,6 +512,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       return () => {
         unsubTournaments();
+        unsubBonusSettings();
         unsubLeaderboard();
         unsubNotifications();
         unsubBranding();

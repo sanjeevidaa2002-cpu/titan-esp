@@ -283,7 +283,7 @@ export const WalletTab: React.FC = () => {
   // Filtered transactions
   const filteredTransactions = transactions.filter((t) => {
     if (historyTab === 'deposits') {
-      return t.type === 'deposit_success' || t.type === 'deposit_request';
+      return t.type === 'deposit_success' || t.type === 'deposit_request' || t.type === 'deposit_bonus' || t.type === 'referral_bonus';
     }
     if (historyTab === 'withdrawals') {
       return t.type === 'withdraw_request' || t.type === 'withdraw_success';
@@ -292,7 +292,7 @@ export const WalletTab: React.FC = () => {
   });
 
   const getTxnColor = (type: TransactionType) => {
-    if (type.includes('success') || type === 'match_winnings' || type === 'referral_bonus' || type === 'bonus_coins') return 'text-green-400';
+    if (type.includes('success') || type === 'match_winnings' || type === 'referral_bonus' || type === 'bonus_coins' || type === 'deposit_bonus') return 'text-green-400';
     if (type.includes('fail')) return 'text-red-400';
     if (type.includes('request')) return 'text-yellow-400';
     return 'text-neutral-400'; // match fees
@@ -310,6 +310,7 @@ export const WalletTab: React.FC = () => {
       case 'match_winnings': return 'Tournament Match Winnings';
       case 'referral_bonus': return 'Promo Reward Code Claimed';
       case 'bonus_coins': return 'Promotional Registration Bonus';
+      case 'deposit_bonus': return 'Deposit Extra Bonus';
       default: return 'Transaction';
     }
   };

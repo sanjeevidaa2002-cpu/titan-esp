@@ -88,6 +88,7 @@ import {
 import { AdminBrandingTab } from './AdminBrandingTab';
 import { AdminSupportSettingsTab } from './AdminSupportSettingsTab';
 import { AdminBannerManagementTab } from './AdminBannerManagementTab';
+import { AdminBonusManagementTab } from './AdminBonusManagementTab';
 import { LoadingPageManager } from './LoadingPageManager';
 import { AdminCategoriesTab } from './AdminCategoriesTab';
 import { AdminWeeklyLeaderboardTab as WeeklyTopPlayersManager } from './AdminWeeklyLeaderboardTab';
@@ -121,7 +122,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
 
   // States
   const [sidebarCollapsed, setSidebarCollapsed] = useState(window.innerWidth < 1200);
-  const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'tournaments' | 'players' | 'wallet' | 'promo_announcements' | 'settings_security' | 'youtube_management' | 'registrations' | 'payment_approval' | 'website_branding' | 'support_settings' | 'loading_page_manager' | 'game_categories' | 'weekly_leaderboard_manager' | 'winnings_manager' | 'banner_management'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'tournaments' | 'players' | 'wallet' | 'promo_announcements' | 'settings_security' | 'youtube_management' | 'registrations' | 'payment_approval' | 'website_branding' | 'support_settings' | 'loading_page_manager' | 'game_categories' | 'weekly_leaderboard_manager' | 'winnings_manager' | 'banner_management' | 'bonus_management'>('overview');
   const [dbUsers, setDbUsers] = useState<UserProfile[]>([]);
   const [dbTransactions, setDbTransactions] = useState<Transaction[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(true);
@@ -1603,6 +1604,17 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
           >
             <ImageIcon className="w-4 h-4 text-emerald-400" />
             {!sidebarCollapsed && <span>📢 Banner Management</span>}
+          </button>
+          <button
+            onClick={() => setActiveTab('bonus_management')}
+            className={`w-full flex items-center ${sidebarCollapsed ? 'justify-center px-0' : 'gap-2.5 px-3.5'} py-2.5 rounded-xl text-left text-xs uppercase font-black tracking-wider transition-all cursor-pointer ${
+              activeTab === 'bonus_management' 
+                ? 'bg-gold-500/10 border border-gold-500/30 text-gold-400' 
+                : 'text-neutral-400 hover:text-white hover:bg-white/5 border border-transparent'
+            }`}
+          >
+            <Award className="w-4 h-4 text-pink-400" />
+            {!sidebarCollapsed && <span>🎁 Bonus Management</span>}
           </button>
 
           <button
@@ -4722,6 +4734,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
         {/* VIEW: BANNER MANAGEMENT */}
         {activeTab === 'banner_management' && (
           <AdminBannerManagementTab />
+        )}
+
+        {/* VIEW: BONUS MANAGEMENT */}
+        {activeTab === 'bonus_management' && (
+          <AdminBonusManagementTab />
         )}
 
         {/* VIEW: GAME CATEGORIES MANAGEMENT */}

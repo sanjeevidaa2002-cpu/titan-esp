@@ -103,7 +103,8 @@ export type TransactionType =
   | 'match_refund'
   | 'match_winnings'
   | 'referral_bonus'
-  | 'bonus_coins';
+  | 'bonus_coins'
+  | 'deposit_bonus';
 
 export interface Transaction {
   id: string;
@@ -404,3 +405,30 @@ export interface HomepageBanner {
 }
 
 
+
+
+export interface BonusSettings {
+  depositBonusEnabled: boolean;
+  depositBonusType: 'fixed' | 'percentage';
+  depositBonusValue: number;
+  minimumDeposit: number;
+  maximumDeposit?: number;
+  maximumBonus?: number;
+  referralBonusEnabled: boolean;
+  referrerBonusAmount: number;
+  referredUserBonusAmount: number;
+  minimumReferralDeposit: number;
+  updatedAt: string;
+}
+
+export interface BonusHistory {
+  id: string;
+  userId: string;
+  userName: string;
+  bonusType: 'deposit_bonus' | 'referral_bonus';
+  depositAmount?: number;
+  bonusAmount: number;
+  referralCode?: string;
+  status: 'completed' | 'pending' | 'failed';
+  createdAt: string;
+}
