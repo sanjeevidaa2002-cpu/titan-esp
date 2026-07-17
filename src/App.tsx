@@ -49,7 +49,6 @@ function DashboardContent() {
   const [matchesFilter, setMatchesFilter] = useState<'all' | 'live' | 'open' | 'completed' | 'my_matches'>('all');
   const [selectedTournament, setSelectedTournament] = useState<Tournament | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(window.innerWidth < 1200);
-  const [showMobileDrawer, setShowMobileDrawer] = useState(false);
   const [deviceType, setDeviceType] = useState<'mobile' | 'tablet' | 'desktop'>('desktop');
 
   useEffect(() => {
@@ -292,14 +291,23 @@ function DashboardContent() {
             <span className="font-extrabold text-xs tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-gold-400 to-amber-500 uppercase text-center max-w-[200px] truncate">
               {brandingSettings?.websiteName || 'TITAN ESPORTS'}
             </span>
-            {/* Hamburger Button below the Name */}
-            <button 
-              onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-              className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-gold-400 hover:text-white transition-all cursor-pointer flex items-center justify-center border border-white/5 mt-1"
-              title="Collapse Sidebar"
-            >
-              <Menu className="w-5 h-5" />
-            </button>
+            {deviceType === 'desktop' && (
+
+                <button 
+
+                  onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+
+                  className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-gold-400 hover:text-white transition-all cursor-pointer flex items-center justify-center border border-white/5 mt-1"
+
+                  title="Collapse Sidebar"
+
+                >
+
+                  <Menu className="w-5 h-5" />
+
+                </button>
+
+              )}
           </div>
         )}
 
@@ -363,10 +371,10 @@ function DashboardContent() {
 
       {/* --- CONTENT PANE & MOBILE LAYOUT WRAPPER --- */}
       <div 
-        className="flex-1 flex flex-col min-h-screen relative overflow-y-auto" 
+        className="flex-1 flex flex-col min-h-screen relative overflow-y-auto transition-all duration-300 ease-in-out" 
         style={{ 
           backgroundColor: brandingSettings?.bgColor || 'transparent',
-          paddingLeft: deviceType === 'desktop' ? '260px' : deviceType === 'tablet' ? '75px' : '0px'
+          paddingLeft: deviceType === 'mobile' ? '0px' : sidebarCollapsed ? '75px' : '260px'
         }}
       >
         
@@ -386,20 +394,8 @@ function DashboardContent() {
               )}
             </div>
             <span className="font-extrabold text-xs tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-gold-400 to-amber-500 uppercase">
-              {brandingSettings?.websiteShortName || brandingSettings?.websiteName || 'Victory Arena'}
+              {brandingSettings?.websiteShortName || brandingSettings?.websiteName || 'TITAN ESPORTS'}
             </span>
-          </div>
-
-          {/* Action icons right */}
-          <div className="flex items-center gap-2">
-            {/* Hamburger / Menu toggle button */}
-            <button 
-              onClick={() => setShowMobileDrawer(true)}
-              title="More Options"
-              className="p-1.5 rounded-lg bg-white/5 border border-white/5 text-neutral-400 hover:text-white transition-all cursor-pointer flex items-center gap-1"
-            >
-              <Menu className="w-4.5 h-4.5" />
-            </button>
           </div>
         </header>
 
@@ -501,109 +497,6 @@ function DashboardContent() {
           </div>
         </nav>
       </div>
-
-      {/* --- MOBILE DRAWER / SIDE SHEET OVERLAY --- */}
-      <AnimatePresence>
-        {showMobileDrawer && (
-          <>
-            {/* Backdrop */}
-            <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 0.5 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setShowMobileDrawer(false)}
-              className="fixed inset-0 bg-black z-50 md:hidden"
-              style={{ bottom: 'calc(64px + env(safe-area-inset-bottom, 0px))' }}
-            />
-            {/* Drawer Body */}
-            <motion.div 
-              initial={{ x: '-100%' }}
-              animate={{ x: 0 }}
-              exit={{ x: '-100%' }}
-              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="fixed left-0 top-0 w-72 bg-[#0c0c12] border-r border-white/10 z-50 p-6 flex flex-col justify-between shadow-2xl md:hidden overflow-y-auto"
-              style={{ bottom: 'calc(64px + env(safe-area-inset-bottom, 0px))' }}
-            >
-              <div>
-                {/* Header inside drawer */}
-                <div className="flex items-center justify-between pb-6 border-b border-white/5">
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-9 h-9 rounded-lg bg-gradient-to-tr from-[#13131a] to-[#252538] flex items-center justify-center border border-gold-500/30 shadow-[0_0_15px_rgba(229,169,25,0.15)] p-0.5">
-                      {brandingSettings?.sidebarLogo ? (
-                        <img src={brandingSettings.sidebarLogo} alt="Logo" className="w-full h-full object-contain" />
-                      ) : brandingSettings?.mainLogo ? (
-                        <img src={brandingSettings.mainLogo} alt="Logo" className="w-full h-full object-contain" />
-                      ) : (
-                        <Trophy className="w-5 h-5 text-gold-400" />
-                      )}
-                    </div>
-                    <span className="font-extrabold text-xs tracking-wider uppercase text-gold-400 max-w-[150px] truncate">
-                      {brandingSettings?.websiteName || 'TITAN ESPORTS'}
-                    </span>
-                  </div>
-                  <button 
-                    onClick={() => setShowMobileDrawer(false)}
-                    className="p-1 rounded bg-white/5 text-neutral-400 hover:text-white cursor-pointer"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                </div>
-
-                {/* Navigation Items inside drawer */}
-                <div className="space-y-2 mt-6">
-                  {navItems.map((item) => {
-                    const Icon = item.icon;
-                    const isActive = activeTab === item.id || (item.id === 'profile' && ['referral', 'leaderboard'].includes(activeTab));
-                    
-                    return (
-                      <button
-                        key={item.id}
-                        onClick={() => {
-                          item.onClick();
-                          setShowMobileDrawer(false);
-                        }}
-                        className={`w-full flex items-center gap-3.5 px-4 py-3 rounded-xl text-left text-xs uppercase font-bold tracking-wider transition-all cursor-pointer ${
-                          isActive 
-                            ? 'bg-gold-500/10 border border-gold-500/30 text-gold-400 font-extrabold shadow-[inset_0_1px_1px_rgba(229,169,25,0.15)]' 
-                            : 'text-neutral-400 hover:text-white hover:bg-white/5 border border-transparent font-medium'
-                        }`}
-                      >
-                        <Icon className={`w-4.5 h-4.5 shrink-0 ${isActive ? 'text-gold-400' : 'text-neutral-400'}`} />
-                        <span>{item.label}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Footer / Account inside Drawer */}
-              <div className="pt-6 border-t border-white/5 space-y-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-neutral-800 overflow-hidden border border-white/10">
-                    <img 
-                      src={userProfile?.avatarUrl || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150"} 
-                      alt="Avatar" 
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-                  <div className="overflow-hidden">
-                    <p className="text-xs font-black text-white uppercase tracking-wider truncate">{userProfile?.nickname || 'lokesh meena'}</p>
-                    <p className="text-[10px] text-neutral-400 font-mono">₹{(userProfile ? (userProfile.depositBalance + userProfile.winningBalance) : 0).toFixed(2)}</p>
-                  </div>
-                </div>
-
-                <button
-                  onClick={() => { logout(); setShowMobileDrawer(false); }}
-                  className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs uppercase font-bold tracking-wider bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-all cursor-pointer"
-                >
-                  <LogOut className="w-4 h-4" />
-                  <span>Log Out Session</span>
-                </button>
-              </div>
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
 
       {/* Global details rules modal */}
       {latestSelectedTournament ? (

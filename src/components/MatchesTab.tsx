@@ -43,6 +43,7 @@ export const MatchesTab: React.FC<MatchesTabProps> = ({
   const [modeFilter, setModeFilter] = useState<'all' | 'Solo' | 'Duo' | 'Squad'>('all');
   const [feeFilter, setFeeFilter] = useState<'all' | 'free' | 'paid'>('all');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [ffCategoryFilter, setFfCategoryFilter] = useState<'all' | 'BR' | 'CS'>('BR');
 
   // Handle manual override from initial filter prop
   React.useEffect(() => {
@@ -90,25 +91,40 @@ export const MatchesTab: React.FC<MatchesTabProps> = ({
 
     // Category Filter
     let matchesCategory = true;
+    let isFreeFire = false;
     if (selectedCategory !== 'all') {
       const activeCat = categories?.find(c => c.id === selectedCategory);
       if (activeCat) {
         const catNameLower = activeCat.name.toLowerCase();
+        if (catNameLower.includes('free fire') || activeCat.id === 'free_fire') {
+            isFreeFire = true;
+        }
         if (catNameLower.includes('free tournament') || activeCat.id === 'free_tournaments') {
           // Display tournaments from ALL games where Entry Fee = 0
           matchesCategory = (t.entryFee === 0 || t.isFreeMatch);
         } else {
-          // Match specific game category (e.g. Free Fire, PUBG Mobile, Clash of Clans)
-          // Default mock matches to 'free_fire' if gameCategory is not defined
+          // Match specific game category
           const tournamentCategory = t.gameCategory || 'free_fire';
           matchesCategory = (tournamentCategory.toLowerCase() === activeCat.id.toLowerCase() || 
                              tournamentCategory.toLowerCase() === activeCat.name.toLowerCase() ||
                              (activeCat.id === 'free_fire' && !t.gameCategory)); // fallback for old tournaments
         }
       }
+    } else {
+       // if all is selected, we might want to check if it's FF to apply FF filters, but usually if 'all' is selected we show everything.
     }
 
-    return matchesSearch && matchesStatus && matchesMode && matchesFee && matchesCategory;
+    let matchesFfCategory = true;
+    if (matchesCategory && (isFreeFire || selectedCategory === 'all')) {
+        // Only apply if it's actually a Free Fire tournament
+        const isActuallyFf = (t.gameCategory || 'free_fire').toLowerCase().includes('free fire') || (t.gameCategory || 'free_fire').toLowerCase() === 'free_fire';
+        if (isActuallyFf && ffCategoryFilter !== 'all') {
+            // t.matchCategory should match ffCategoryFilter
+            matchesFfCategory = (t.matchCategory === ffCategoryFilter) || (!t.matchCategory && ffCategoryFilter === 'BR'); // Default old to BR
+        }
+    }
+
+    return matchesSearch && matchesStatus && matchesMode && matchesFee && matchesCategory && matchesFfCategory;
   });
 
   if (statusFilter === 'my_matches') {
@@ -401,6 +417,38 @@ export const MatchesTab: React.FC<MatchesTabProps> = ({
           </button>
         </div>
 
+        {/* FF Category Selector */
+        (() => {
+          const activeCat = categories?.find(c => c.id === selectedCategory);
+          const isFreeFire = selectedCategory === 'all' || (activeCat && (activeCat.name.toLowerCase().includes('free fire') || activeCat.id === 'free_fire'));
+          
+          if (isFreeFire) {
+            return (
+              <div className="flex bg-[#111116] p-1 rounded-xl border border-white/5 overflow-x-auto gap-1 mb-2">
+                <button 
+                  onClick={() => setFfCategoryFilter('all')}
+                  className={`flex-1 py-2 px-3 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all shrink-0 ${ffCategoryFilter === 'all' ? 'bg-white/10 text-white shadow' : 'text-neutral-400 hover:text-white'}`}
+                >
+                  All FF
+                </button>
+                <button 
+                  onClick={() => setFfCategoryFilter('BR')}
+                  className={`flex-1 py-2 px-3 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all shrink-0 ${ffCategoryFilter === 'BR' ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow' : 'text-neutral-400 hover:text-white'}`}
+                >
+                  🎮 Battle Royale (BR)
+                </button>
+                <button 
+                  onClick={() => setFfCategoryFilter('CS')}
+                  className={`flex-1 py-2 px-3 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all shrink-0 ${ffCategoryFilter === 'CS' ? 'bg-gradient-to-r from-orange-600 to-red-600 text-white shadow' : 'text-neutral-400 hover:text-white'}`}
+                >
+                  ⚔️ Clash Squad (CS)
+                </button>
+              </div>
+            );
+          }
+          return null;
+        })()}
+
         {/* Dropdown Filters (Mode & Fee) */}
         <div className="grid grid-cols-2 gap-3">
           {/* Mode Selector */}
@@ -523,11 +571,11 @@ export const MatchesTab: React.FC<MatchesTabProps> = ({
                       </span>
                       <span className="flex items-center gap-1">
                         <Users className="w-3 h-3 text-gold-500" />
-                        {t.mode}
+                        {t.matchCategory || 'BR'} ({t.mode})
                       </span>
                       <span className="flex items-center gap-1">
                         <Clock className="w-3 h-3 text-blue-400" />
-                        {new Date(t.dateTime).toLocaleDateString()} @ {new Date(t.dateTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                        {t.matchDate ? `${new Date(t.matchDate).toLocaleDateString()} @ ${t.matchTime}` : (t.dateTime ? `${new Date(t.dateTime).toLocaleDateString()} @ ${new Date(t.dateTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}` : 'TBA')}
                       </span>
                     </p>
                   </div>

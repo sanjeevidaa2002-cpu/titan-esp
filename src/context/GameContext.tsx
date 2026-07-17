@@ -39,15 +39,15 @@ import {
   Transaction, 
   AppNotification, 
   LeaderboardEntry,
-  SupportMessage,
   RoomStatusType,
   PlayerRegistration,
   BrandingSettings,
-  SupportWidgetSettings,
+  SupportSettings,
   GameCategory,
   WeeklyPlayer,
   WeeklyLeaderboardConfig,
-  TournamentWinner
+  TournamentWinner,
+  HomepageBanner
 } from '../types';
 import { 
   MOCK_TOURNAMENTS, 
@@ -89,7 +89,6 @@ interface GameContextProps {
     governmentName?: string,
     players?: { gameName: string; uid: string }[]
   ) => Promise<{ success: boolean; message: string }>;
-  submitSupportMessage: (name: string, email: string, message: string, channel: 'telegram' | 'whatsapp' | 'discord' | 'instagram' | 'contact_form') => Promise<void>;
   triggerNotification: (title: string, message: string, type: 'info' | 'alert' | 'winner' | 'system') => Promise<void>;
   refreshTransactions: () => Promise<void>;
   // Manual status change helper for demonstration/interactivity
@@ -108,8 +107,8 @@ interface GameContextProps {
 
   brandingSettings: BrandingSettings;
   updateBrandingSettings: (updates: Partial<BrandingSettings>) => Promise<void>;
-  supportSettings: SupportWidgetSettings;
-  updateSupportSettings: (updates: Partial<SupportWidgetSettings>) => Promise<void>;
+  supportSettings: SupportSettings;
+  updateSupportSettings: (updates: Partial<SupportSettings>) => Promise<void>;
   weeklyPlayers: WeeklyPlayer[];
   weeklyLeaderboardConfig: WeeklyLeaderboardConfig;
   saveWeeklyPlayerAdmin: (player: WeeklyPlayer) => Promise<void>;
@@ -118,6 +117,9 @@ interface GameContextProps {
   winners: TournamentWinner[];
   saveWinnerAdmin: (winner: TournamentWinner) => Promise<void>;
   deleteWinnerAdmin: (id: string) => Promise<void>;
+  homepageBanners: HomepageBanner[];
+  saveHomepageBannerAdmin: (banner: HomepageBanner) => Promise<void>;
+  deleteHomepageBannerAdmin: (id: string) => Promise<void>;
 }
 
 const GameContext = createContext<GameContextProps | undefined>(undefined);
@@ -143,11 +145,12 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [registrations, setRegistrations] = useState<PlayerRegistration[]>([]);
   const [registeringTournament, setRegisteringTournament] = useState<Tournament | null>(null);
   const [brandingSettings, setBrandingSettings] = useState<BrandingSettings>(DEFAULT_BRANDING);
-  const [supportSettings, setSupportSettings] = useState<SupportWidgetSettings>(DEFAULT_SUPPORT_SETTINGS);
+  const [supportSettings, setSupportSettings] = useState<SupportSettings>(DEFAULT_SUPPORT_SETTINGS);
   const [categories, setCategories] = useState<GameCategory[]>(DEFAULT_CATEGORIES);
   const [weeklyPlayers, setWeeklyPlayers] = useState<WeeklyPlayer[]>([]);
   const [weeklyLeaderboardConfig, setWeeklyLeaderboardConfig] = useState<WeeklyLeaderboardConfig>(DEFAULT_WEEKLY_LEADERBOARD_CONFIG);
   const [winners, setWinners] = useState<TournamentWinner[]>([]);
+  const [homepageBanners, setHomepageBanners] = useState<HomepageBanner[]>([]);
 
 
   // Helper: Create initial database structure (Seed Data) if empty in Firestore
@@ -402,12 +405,12 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       );
 
       // Realtime support settings listener
-      const unsubSupport = onSnapshot(doc(db, 'settings', 'supportWidget'),
+      const unsubSupport = onSnapshot(doc(db, 'support_settings', 'config'),
         (docSnap) => {
           if (docSnap.exists()) {
-            setSupportSettings(docSnap.data() as SupportWidgetSettings);
+            setSupportSettings(docSnap.data() as SupportSettings);
           } else {
-            setDoc(doc(db, 'settings', 'supportWidget'), DEFAULT_SUPPORT_SETTINGS).catch(console.error);
+            setDoc(doc(db, 'support_settings', 'config'), DEFAULT_SUPPORT_SETTINGS).catch(console.error);
             setSupportSettings(DEFAULT_SUPPORT_SETTINGS);
           }
         },
@@ -475,6 +478,21 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       );
 
+      // Realtime homepage_banners listener
+      const unsubBanners = onSnapshot(collection(db, 'homepage_banners'),
+        (snapshot) => {
+          const list: HomepageBanner[] = [];
+          snapshot.forEach((doc) => {
+            list.push({ id: doc.id, ...doc.data() } as HomepageBanner);
+          });
+          list.sort((a, b) => a.displayOrder - b.displayOrder);
+          setHomepageBanners(list);
+        },
+        (err) => {
+          console.warn("Homepage Banners sync error:", err);
+        }
+      );
+
       setLoading(false);
 
       return () => {
@@ -487,6 +505,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         unsubWeeklyPlayers();
         unsubWinners();
         unsubWeeklyLeaderboardConfig();
+        unsubBanners();
       };
     });
   }, [useLocalFallback]);
@@ -1286,35 +1305,6 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   // Submit Support ticket (simulated or direct Firestore)
-  const submitSupportMessage = async (
-    name: string, 
-    email: string, 
-    message: string, 
-    channel: 'telegram' | 'whatsapp' | 'discord' | 'instagram' | 'contact_form'
-  ) => {
-    const logObj: SupportMessage = {
-      id: 'ticket_' + Date.now(),
-      userId: currentUser?.uid || undefined,
-      name,
-      email,
-      message,
-      channel,
-      dateTime: new Date().toISOString()
-    };
-
-    if (!useLocalFallback) {
-      await addDoc(collection(db, 'support_messages'), logObj);
-    } else {
-      console.log("Mock support message saved:", logObj);
-    }
-
-    await triggerNotification(
-      "Support Ticket Raised ✉️",
-      `Thank you ${name}. Our agents will contact you via your email ${email} shortly.`,
-      "system"
-    );
-  };
-
   // Quick push real-time notifications
   const triggerNotification = async (
     title: string, 
@@ -1819,15 +1809,15 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const updateSupportSettings = async (updates: Partial<SupportWidgetSettings>) => {
+  const updateSupportSettings = async (updates: Partial<SupportSettings>) => {
     // Optimistic UI update
     setSupportSettings(prev => ({ ...prev, ...updates }));
     if (!useLocalFallback) {
       try {
-        await updateDoc(doc(db, 'settings', 'supportWidget'), updates);
+        await updateDoc(doc(db, 'support_settings', 'config'), updates);
       } catch (e: any) {
         if (e.code === 'not-found') {
-          await setDoc(doc(db, 'settings', 'supportWidget'), { ...DEFAULT_SUPPORT_SETTINGS, ...updates });
+          await setDoc(doc(db, 'support_settings', 'config'), { ...DEFAULT_SUPPORT_SETTINGS, ...updates });
         } else {
           console.error("Failed to update support settings:", e);
           throw e;
@@ -1907,6 +1897,37 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const saveHomepageBannerAdmin = async (banner: HomepageBanner) => {
+    setHomepageBanners(prev => {
+      const exists = prev.some(b => b.id === banner.id);
+      if (exists) {
+        return prev.map(b => b.id === banner.id ? banner : b).sort((a, b) => a.displayOrder - b.displayOrder);
+      } else {
+        return [...prev, banner].sort((a, b) => a.displayOrder - b.displayOrder);
+      }
+    });
+
+    if (!useLocalFallback) {
+      try {
+        await setDoc(doc(db, 'homepage_banners', banner.id), banner);
+      } catch (err) {
+        console.error("Error saving homepage banner:", err);
+      }
+    }
+  };
+
+  const deleteHomepageBannerAdmin = async (id: string) => {
+    setHomepageBanners(prev => prev.filter(b => b.id !== id));
+
+    if (!useLocalFallback) {
+      try {
+        await deleteDoc(doc(db, 'homepage_banners', id));
+      } catch (err) {
+        console.error("Error deleting homepage banner:", err);
+      }
+    }
+  };
+
   return (
     <GameContext.Provider value={{
       currentUser,
@@ -1929,7 +1950,6 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       depositMoney,
       withdrawMoney,
       joinTournament,
-      submitSupportMessage,
       triggerNotification,
       refreshTransactions,
       simulateMatchCompletion,
@@ -1954,7 +1974,10 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       updateWeeklyLeaderboardConfigAdmin,
       winners,
       saveWinnerAdmin,
-      deleteWinnerAdmin
+      deleteWinnerAdmin,
+      homepageBanners,
+      saveHomepageBannerAdmin,
+      deleteHomepageBannerAdmin
     }}>
       {children}
     </GameContext.Provider>

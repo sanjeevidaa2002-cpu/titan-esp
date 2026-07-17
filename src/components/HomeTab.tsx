@@ -22,6 +22,7 @@ import {
   Gift
 } from 'lucide-react';
 import { FF_BANNERS } from '../dataStore';
+import { HomepageBannerSlider } from './HomepageBannerSlider';
 
 interface HomeTabProps {
   onSwitchTab: (tab: string) => void;
@@ -43,6 +44,8 @@ export const HomeTab: React.FC<HomeTabProps> = ({ onSwitchTab, onSetMatchFilter 
 
   return (
     <div id="home_tab_root" className="space-y-6 pb-24">
+      <HomepageBannerSlider />
+      
       {/* Top Header Section */}
       <div className="flex items-center justify-between bg-[#111116]/80 p-4 rounded-2xl border border-white/5 backdrop-blur-md">
         <div className="flex items-center gap-3">

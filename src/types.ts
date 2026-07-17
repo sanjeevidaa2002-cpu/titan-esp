@@ -68,6 +68,21 @@ export interface Tournament {
   totalSlots: number;
   joinedSlots: string[]; // List of user UIDs who joined
   joinedNicknames: {[uid: string]: string}; // UID -> Free Fire Nickname mapping
+  gameName?: string; // e.g. "Free Fire"
+  category?: "BR" | "CS" | string; // Battle Royale (BR) or Clash Squad (CS)
+  matchType?: "Solo" | "Duo" | "Squad" | string;
+  tournamentName?: string; // mapped from title
+  thumbnailUrl?: string; // mapped from logoUrl
+  description?: string;
+  registrationStart?: string;
+  registrationEnd?: string;
+  matchDate?: string;
+  matchTime?: string;
+  status?: string;
+  createdAt?: string | number;
+  updatedAt?: string | number;
+  enabled?: boolean; // Enable/Disable Tournament
+  matchCategory?: "BR" | "CS" | string; // Battle Royale (BR) or Clash Squad (CS)
   joinedTeams?: RegistrationTeam[]; // Detailed team player registrations
   maxKillsWinner?: string; // Player Nickname with highest kills
   isFreeMatch: boolean;
@@ -137,15 +152,6 @@ export interface LeaderboardEntry {
   totalEarnings: number;
 }
 
-export interface SupportMessage {
-  id: string;
-  userId?: string;
-  name: string;
-  email: string;
-  message: string;
-  channel: 'telegram' | 'whatsapp' | 'discord' | 'instagram' | 'contact_form';
-  dateTime: string;
-}
 
 export interface PlayerRegistration {
   id: string; // REG-XXXXXX
@@ -321,61 +327,12 @@ export interface BrandingSettings {
   themeMode: 'dark' | 'light' | 'auto';
 }
 
-export interface SupportWidgetSettings {
-  // WhatsApp Settings
-  whatsappEnabled: boolean;
-  whatsappGroupLink: string;
-  whatsappCommunityLink: string;
-  whatsappContactNumber: string;
-  whatsappButtonTitle: string;
-  whatsappButtonDescription: string;
-  whatsappCustomLogo: string;
-
-  // Telegram Settings
-  telegramEnabled: boolean;
-  telegramGroupLink: string;
-  telegramChannelLink: string;
-  telegramUsername: string;
-  telegramButtonTitle: string;
-  telegramButtonDescription: string;
-  telegramCustomLogo: string;
-
-  // Floating Button Settings
-  widgetEnabled: boolean;
-  showOnDesktop: boolean;
-  showOnTablet: boolean;
-  showOnMobile: boolean;
-  showBeforeLogin: boolean;
-  showAfterLogin: boolean;
-  
-  floatingIcon: string;
-  floatingBgColor: string;
-  floatingSizeDesktop: number;
-  floatingSizeMobile: number;
-  iconSizeDesktop: number;
-  iconSizeMobile: number;
-  floatingBorderColor: string;
-  floatingOpacity: number;
-  floatingBorderRadius: number;
-  floatingGlowEffect: boolean;
-  floatingShadow: string;
-  
-  floatingPosition: 'bottom-right' | 'bottom-left' | 'top-right' | 'top-left';
-  floatingMarginX: number;
-  floatingMarginY: number;
-  
-  enableDragAndDrop: boolean;
-  enableSnapToEdge: boolean;
-  savePositionAutomatically: boolean;
-
-  pulseAnimation: boolean;
-  floatingAnimation: boolean;
-  hoverAnimation: boolean;
-  clickAnimation: boolean;
-  
-  floatingOpenAnimation: string;
-  floatingCloseAnimation: string;
-  floatingAutoCloseTimer: number; // 0 means disabled
+export interface SupportSettings {
+  whatsappLink: string;
+  telegramLink: string;
+  whatsappStatus: boolean;
+  telegramStatus: boolean;
+  updatedAt: number;
 }
 
 export interface GameCategory {
@@ -433,6 +390,17 @@ export interface TournamentWinner {
   pinned: boolean;
   displayOrder: number;
   createdAt?: string;
+}
+
+export interface HomepageBanner {
+  id: string;
+  title: string;
+  imageUrl: string;
+  redirectUrl: string;
+  displayOrder: number;
+  enabled: boolean;
+  createdAt: number;
+  updatedAt: number;
 }
 
 

@@ -47,6 +47,8 @@ export const TournamentDetailsModal: React.FC<TournamentDetailsModalProps> = ({
   const [playersInputs, setPlayersInputs] = useState<{ name: string; uid: string }[]>([]);
   const [formError, setFormError] = useState('');
 
+const matchStarted = tournament.roomStatus === 'live' || tournament.roomStatus === 'completed' || tournament.matchRoomStatus === 'match_live' || tournament.matchRoomStatus === 'match_completed';
+
   const isFormValid = () => {
     return playersInputs.length > 0 && playersInputs.every(p => p.name.trim() !== '' && p.uid.trim() !== '');
   };
@@ -238,11 +240,10 @@ export const TournamentDetailsModal: React.FC<TournamentDetailsModalProps> = ({
     return () => clearInterval(interval);
   }, [tournament.dateTime]);
 
-  // Check if credentials are ready (within 15 minutes of start, or live, or completed)
+  // Check if credentials are ready based on matchRoomStatus
   const showCredentials = isUserJoined && (
-    new Date(tournament.dateTime).getTime() - Date.now() <= 15 * 60 * 1000 || 
-    tournament.roomStatus === 'live' || 
-    tournament.roomStatus === 'completed'
+    tournament.matchRoomStatus === 'room_available' || 
+    tournament.matchRoomStatus === 'match_live'
   );
 
   return (
@@ -318,7 +319,7 @@ export const TournamentDetailsModal: React.FC<TournamentDetailsModalProps> = ({
                       <span className="text-xs font-bold text-white uppercase tracking-wider">Custom Room Credentials</span>
                     </div>
                     <span className="text-[9px] font-mono text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded">
-                      {showCredentials ? 'Active' : 'Unlocks 15m before start'}
+                      {showCredentials ? 'Active' : (tournament.matchRoomStatus === 'coming_soon' || !tournament.matchRoomStatus) ? 'Coming Soon' : 'Closed'}
                     </span>
                   </div>
 
@@ -336,7 +337,7 @@ export const TournamentDetailsModal: React.FC<TournamentDetailsModalProps> = ({
                   ) : (
                     <div className="text-center py-2 space-y-1.5">
                       <p className="text-xs font-semibold text-neutral-300 font-mono">
-                        Credentials unlock in: <strong className="text-blue-400">{countdown}</strong>
+                        Please wait. The Admin will reveal Room details when it's time.
                       </p>
                       <p className="text-[9px] text-neutral-500">
                         Once unlocked, open your Free Fire App &gt; Custom Rooms &gt; Input ID and Password to enter.
@@ -462,7 +463,7 @@ export const TournamentDetailsModal: React.FC<TournamentDetailsModalProps> = ({
                     <button
                       type="button"
                       onClick={handleJoinSubmit}
-                      disabled={isJoining || showPaymentConfirm || !isFormValid()}
+                      disabled={isJoining || showPaymentConfirm || !isFormValid() || matchStarted}
                       className={`w-full py-3 rounded-xl text-neutral-950 text-xs font-black uppercase tracking-widest shadow-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
                         isFormValid() 
                           ? 'bg-gradient-to-r from-gold-500 to-amber-600 hover:brightness-110 active:scale-98 glow-purple' 
@@ -473,7 +474,7 @@ export const TournamentDetailsModal: React.FC<TournamentDetailsModalProps> = ({
                         <span>Processing...</span>
                       ) : (
                         <>
-                          <span>Done</span>
+                          <span>{matchStarted ? 'Match Started - Joins Disabled' : 'Done'}</span>
                           <CheckCircle className="w-3.5 h-3.5" />
                         </>
                       )}

@@ -1,3 +1,4 @@
+import { LogOut } from "lucide-react";
 /**
  * @license
  * SPDX-License-Identifier: Apache-2.0
@@ -26,7 +27,6 @@ import {
   Tournament, 
   Transaction, 
   AppNotification, 
-  SupportMessage, 
   RoomStatusType 
 } from '../types';
 import { 
@@ -71,7 +71,8 @@ import {
   Menu,
   Paintbrush,
   MessageCircle,
-  Trophy
+  Trophy,
+  Image as ImageIcon
 } from 'lucide-react';
 import { 
   BarChart, 
@@ -86,6 +87,7 @@ import {
 } from 'recharts';
 import { AdminBrandingTab } from './AdminBrandingTab';
 import { AdminSupportSettingsTab } from './AdminSupportSettingsTab';
+import { AdminBannerManagementTab } from './AdminBannerManagementTab';
 import { LoadingPageManager } from './LoadingPageManager';
 import { AdminCategoriesTab } from './AdminCategoriesTab';
 import { AdminWeeklyLeaderboardTab as WeeklyTopPlayersManager } from './AdminWeeklyLeaderboardTab';
@@ -118,11 +120,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
   const [loginError, setLoginError] = useState('');
 
   // States
-  const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'tournaments' | 'players' | 'wallet' | 'promo_announcements' | 'settings_security' | 'youtube_management' | 'registrations' | 'payment_approval' | 'website_branding' | 'support_settings' | 'loading_page_manager' | 'game_categories' | 'weekly_leaderboard_manager' | 'winnings_manager'>('overview');
-  const [showMobileMenu, setShowMobileMenu] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(window.innerWidth < 1200);
+  const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'tournaments' | 'players' | 'wallet' | 'promo_announcements' | 'settings_security' | 'youtube_management' | 'registrations' | 'payment_approval' | 'website_branding' | 'support_settings' | 'loading_page_manager' | 'game_categories' | 'weekly_leaderboard_manager' | 'winnings_manager' | 'banner_management'>('overview');
   const [dbUsers, setDbUsers] = useState<UserProfile[]>([]);
   const [dbTransactions, setDbTransactions] = useState<Transaction[]>([]);
-  const [dbSupport, setDbSupport] = useState<SupportMessage[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(true);
   const [searchUserQuery, setSearchUserQuery] = useState('');
   
@@ -209,10 +210,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
   const [ytShorts, setYtShorts] = useState<any[]>([]);
   const [loadingYt, setLoadingYt] = useState(false);
   const [ytTestStatus, setYtTestStatus] = useState<{ success?: boolean; message?: string } | null>(null);
-
-  useEffect(() => {
-    setShowMobileMenu(false);
-  }, [activeTab]);
 
   useEffect(() => {
     if (activeTab === 'youtube_management') {
@@ -355,6 +352,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
     perKillPrize: number;
     map: 'Bermuda' | 'Kalahari' | 'Purgatory' | 'Alpine' | 'Nexterra';
     dateTime: string;
+    matchDate: string;
+    matchTime: string;
+    registrationStart: string;
+    registrationEnd: string;
     roomStatus: RoomStatusType;
     roomID?: string;
     roomPassword?: string;
@@ -365,6 +366,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
     liveUrl: string;
     gameCategory: string;
     tournamentType: 'paid' | 'free';
+    enabled: boolean;
+    matchCategory: 'BR' | 'CS';
   }>({
     id: '',
     title: '',
@@ -376,6 +379,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
     perKillPrize: 3,
     map: 'Bermuda',
     dateTime: '',
+    matchDate: '',
+    matchTime: '',
+    registrationStart: '',
+    registrationEnd: '',
     roomStatus: 'open',
     roomID: '',
     roomPassword: '',
@@ -384,6 +391,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
     isFreeMatch: false,
     gameCategory: 'free_fire',
     tournamentType: 'paid',
+    enabled: true,
+    matchCategory: 'BR',
     rules: [
       'Teaming will lead to direct disqualification and zero prize payouts.',
       'Emulators and VPN tools are strictly prohibited inside this room.',
@@ -664,21 +673,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
       ]);
     });
 
-    // Realtime support listener
-    const unsubSupport = onSnapshot(collection(db, 'support_messages'), (snapshot) => {
-      const list: SupportMessage[] = [];
-      snapshot.forEach((doc) => {
-        list.push({ id: doc.id, ...doc.data() } as SupportMessage);
-      });
-      setDbSupport(list);
-    }, (err) => {
-      console.warn("Support messages sync failed:", err);
-    });
 
     return () => {
       unsubUsers();
       unsubTransactions();
-      unsubSupport();
     };
   }, []);
 
@@ -961,6 +959,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
       liveUrl: '',
       gameCategory: 'free_fire',
       tournamentType: 'paid',
+    enabled: true,
+    matchCategory: 'BR',
       rules: [
         'Teaming will lead to direct disqualification.',
         'Emulators prohibited.',
@@ -981,6 +981,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
       perKillPrize: t.perKillPrize,
       map: t.map,
       dateTime: t.dateTime,
+      matchDate: t.matchDate || '',
+      matchTime: t.matchTime || '',
+      registrationStart: t.registrationStart || '',
+      registrationEnd: t.registrationEnd || '',
       roomStatus: t.roomStatus,
       roomID: t.roomID || '',
       roomPassword: t.roomPassword || '',
@@ -990,6 +994,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
       liveUrl: t.liveUrl || '',
       gameCategory: t.gameCategory || 'free_fire',
       tournamentType: t.tournamentType || (t.isFreeMatch || t.entryFee === 0 ? 'free' : 'paid'),
+      enabled: t.enabled !== false,
+      matchCategory: (t.matchCategory as 'BR' | 'CS') || 'BR',
       rules: t.rules || [
         'Teaming will lead to direct disqualification.',
         'Emulators prohibited.',
@@ -1497,22 +1503,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
               </button>
             </form>
 
-            <button
+            <button 
               onClick={onBack}
-              className="w-full mt-3 py-3 bg-white/5 hover:bg-white/10 border border-white/5 text-neutral-400 hover:text-white font-black rounded-xl text-xs uppercase tracking-wider transition-all cursor-pointer"
+              className="px-2 py-1 rounded bg-white/5 text-[9px] uppercase font-bold text-neutral-400 hover:text-white border border-white/5 cursor-pointer"
             >
-              Cancel & Exit Gate
+              Exit Console
             </button>
-          </div>
-
-          {/* Quick Info Board */}
-          <div className="bg-[#09090e] border-t border-white/5 p-4 text-center">
-            <p className="text-[9px] text-neutral-500 uppercase tracking-wider font-semibold">Demo Console Access Credentials</p>
-            <div className="flex items-center justify-center gap-4 mt-2 text-[10px] font-mono text-gold-400/80 bg-gold-500/5 py-1.5 px-3 rounded-lg border border-gold-500/10">
-              <div>ID: <span className="text-neutral-300 font-bold select-all">admin</span></div>
-              <div className="text-neutral-700">|</div>
-              <div>Password: <span className="text-neutral-300 font-bold select-all">admin123</span></div>
-            </div>
           </div>
         </div>
       </div>
@@ -1520,7 +1516,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
   }
 
   return (
-    <div className="fixed inset-0 bg-[#08080c] text-neutral-200 z-50 flex flex-col md:flex-row font-sans overflow-hidden">
+    <div className="fixed inset-0 bg-[#08080c] text-neutral-200 z-50 flex flex-row font-sans overflow-hidden">
       {confirmDialog.isOpen && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[999] flex items-center justify-center p-4">
           <div className="w-full max-w-sm bg-[#0e0e16] border border-white/10 rounded-2xl p-6 shadow-2xl relative overflow-hidden">
@@ -1548,252 +1544,282 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
           </div>
         </div>
       )}
-      
-      {/* SIDEBAR */}
-      <aside className="w-full md:w-64 bg-[#0d0d14] border-b md:border-b-0 md:border-r border-white/5 flex flex-col shrink-0">
         
+      {/* SIDEBAR */}
+      <aside 
+        className="bg-[#0d0d14] border-r border-white/5 flex flex-col shrink-0 transition-all duration-300 ease-in-out overflow-hidden"
+        style={{ width: sidebarCollapsed ? '75px' : '260px' }}
+      >
         {/* Sidebar Header */}
-        <div className="p-4 border-b border-white/5 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-gold-500/10 flex items-center justify-center border border-gold-500/30">
-              <Flame className="w-4.5 h-4.5 text-gold-400" />
-            </div>
-            <div>
-              <h1 className="text-xs font-black tracking-widest text-white uppercase">ARENA ADMIN</h1>
-              <p className="text-[8px] text-neutral-500 font-mono tracking-wider">PREMIUM CONSOLE v{appSettings.version}</p>
-            </div>
-          </div>
-          
-          <div className="flex items-center gap-1.5">
-            <button 
-              onClick={() => setShowMobileMenu(!showMobileMenu)}
-              className="md:hidden p-1.5 rounded bg-white/5 text-neutral-400 hover:text-white border border-white/5 cursor-pointer flex items-center justify-center"
-              title="Toggle Menu"
-            >
-              <Menu className="w-4 h-4" />
-            </button>
-
+        <div className="p-4 border-b border-white/5 flex flex-col items-center gap-3 relative">
+          <div className="absolute right-4 top-4 flex items-center gap-1.5">
             <button 
               onClick={onBack}
-              className="px-2 py-1 rounded bg-white/5 text-[9px] uppercase font-bold text-neutral-400 hover:text-white border border-white/5 cursor-pointer"
+              className="px-2 py-1.5 flex justify-center items-center rounded bg-white/5 text-[9px] uppercase font-bold text-neutral-400 hover:text-white border border-white/5 cursor-pointer"
+              title="Exit Console"
             >
-              Exit Console
+              {sidebarCollapsed ? <LogOut className="w-4 h-4" /> : 'Exit Console'}
             </button>
+          </div>
+          
+          <div className="flex flex-col items-center gap-2 mt-2">
+            <div className="w-12 h-12 rounded-xl bg-gradient-to-tr from-[#13131a] to-[#252538] flex items-center justify-center border border-gold-500/30 shadow-[0_0_15px_rgba(229,169,25,0.15)] p-1">
+              {appSettings.sidebarLogo || appSettings.mainLogo ? (
+                <img src={appSettings.sidebarLogo || appSettings.mainLogo} alt="Logo" className="w-full h-full object-contain" />
+              ) : (
+                <Trophy className="w-6 h-6 text-gold-400" />
+              )}
+            </div>
+            {!sidebarCollapsed && (
+            <div className="text-center transition-opacity duration-300">
+              <h1 className="text-xs font-black tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-gold-400 to-amber-500 uppercase">{appSettings.websiteName || 'TITAN ESPORTS'}</h1>
+              <p className="text-[8px] text-neutral-500 font-mono tracking-wider">ADMIN v{appSettings.version}</p>
+            </div>
+          )}
           </div>
         </div>
 
         {/* Sidebar Menu Options */}
-        <nav className={`flex-1 p-3 space-y-1 overflow-y-auto ${showMobileMenu ? 'block' : 'hidden md:block'}`}>
+        <nav className="flex-1 p-3 space-y-1 overflow-y-auto overflow-x-hidden">
           <button
             onClick={() => setActiveTab('overview')}
-            className={`w-full flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-left text-xs uppercase font-black tracking-wider transition-all cursor-pointer ${
+            className={`w-full flex items-center ${sidebarCollapsed ? 'justify-center px-0' : 'gap-2.5 px-3.5'} py-2.5 rounded-xl text-left text-xs uppercase font-black tracking-wider transition-all cursor-pointer ${
               activeTab === 'overview' 
                 ? 'bg-gold-500/10 border border-gold-500/30 text-gold-400' 
                 : 'text-neutral-400 hover:text-white hover:bg-white/5 border border-transparent'
             }`}
           >
             <LayoutDashboard className="w-4 h-4" />
-            <span>Dashboard Stats</span>
+            {!sidebarCollapsed && <span>Dashboard Stats</span>}
+          </button>
+
+          <button
+            onClick={() => setActiveTab('banner_management')}
+            className={`w-full flex items-center ${sidebarCollapsed ? 'justify-center px-0' : 'gap-2.5 px-3.5'} py-2.5 rounded-xl text-left text-xs uppercase font-black tracking-wider transition-all cursor-pointer ${
+              activeTab === 'banner_management' 
+                ? 'bg-gold-500/10 border border-gold-500/30 text-gold-400' 
+                : 'text-neutral-400 hover:text-white hover:bg-white/5 border border-transparent'
+            }`}
+          >
+            <ImageIcon className="w-4 h-4 text-emerald-400" />
+            {!sidebarCollapsed && <span>📢 Banner Management</span>}
           </button>
 
           <button
             onClick={() => setActiveTab('users')}
-            className={`w-full flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-left text-xs uppercase font-black tracking-wider transition-all cursor-pointer ${
+            className={`w-full flex items-center ${sidebarCollapsed ? 'justify-center px-0' : 'gap-2.5 px-3.5'} py-2.5 rounded-xl text-left text-xs uppercase font-black tracking-wider transition-all cursor-pointer ${
               activeTab === 'users' 
                 ? 'bg-gold-500/10 border border-gold-500/30 text-gold-400' 
                 : 'text-neutral-400 hover:text-white hover:bg-white/5 border border-transparent'
             }`}
           >
             <Users className="w-4 h-4" />
-            <span>User Accounts</span>
+            {!sidebarCollapsed && <span>User Accounts</span>}
           </button>
 
           <button
             onClick={() => setActiveTab('tournaments')}
-            className={`w-full flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-left text-xs uppercase font-black tracking-wider transition-all cursor-pointer ${
+            className={`w-full flex items-center ${sidebarCollapsed ? 'justify-center px-0' : 'gap-2.5 px-3.5'} py-2.5 rounded-xl text-left text-xs uppercase font-black tracking-wider transition-all cursor-pointer ${
               activeTab === 'tournaments' 
                 ? 'bg-gold-500/10 border border-gold-500/30 text-gold-400' 
                 : 'text-neutral-400 hover:text-white hover:bg-white/5 border border-transparent'
             }`}
           >
             <Gamepad2 className="w-4 h-4" />
-            <span>Tournaments</span>
+            {!sidebarCollapsed && <span>Tournaments</span>}
           </button>
 
           <button
             onClick={() => setActiveTab('game_categories')}
-            className={`w-full flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-left text-xs uppercase font-black tracking-wider transition-all cursor-pointer ${
+            className={`w-full flex items-center ${sidebarCollapsed ? 'justify-center px-0' : 'gap-2.5 px-3.5'} py-2.5 rounded-xl text-left text-xs uppercase font-black tracking-wider transition-all cursor-pointer ${
               activeTab === 'game_categories' 
                 ? 'bg-gold-500/10 border border-gold-500/30 text-gold-400' 
                 : 'text-neutral-400 hover:text-white hover:bg-white/5 border border-transparent'
             }`}
           >
             <Gamepad2 className="w-4 h-4 text-purple-400" />
-            <span>🎮 Game Category Manager</span>
+            {!sidebarCollapsed && <span>🎮 Game Category Manager</span>}
           </button>
 
           <button
             onClick={() => setActiveTab('payment_approval')}
-            className={`w-full flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-left text-xs uppercase font-black tracking-wider transition-all cursor-pointer ${
+            className={`w-full flex items-center ${sidebarCollapsed ? 'justify-center px-0' : 'gap-2.5 px-3.5'} py-2.5 rounded-xl text-left text-xs uppercase font-black tracking-wider transition-all cursor-pointer ${
               activeTab === 'payment_approval' 
                 ? 'bg-gold-500/10 border border-gold-500/30 text-gold-400' 
                 : 'text-neutral-400 hover:text-white hover:bg-white/5 border border-transparent'
             }`}
           >
             <Wallet className="w-4 h-4" />
-            <span>Payment Requests</span>
+            {!sidebarCollapsed && <span>Payment Requests</span>}
           </button>
 
           <button
             onClick={() => setActiveTab('registrations')}
-            className={`w-full flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-left text-xs uppercase font-black tracking-wider transition-all cursor-pointer ${
+            className={`w-full flex items-center ${sidebarCollapsed ? 'justify-center px-0' : 'gap-2.5 px-3.5'} py-2.5 rounded-xl text-left text-xs uppercase font-black tracking-wider transition-all cursor-pointer ${
               activeTab === 'registrations' 
                 ? 'bg-gold-500/10 border border-gold-500/30 text-gold-400' 
                 : 'text-neutral-400 hover:text-white hover:bg-white/5 border border-transparent'
             }`}
           >
             <FileSpreadsheet className="w-4 h-4" />
-            <span>Tournament Registrations</span>
+            {!sidebarCollapsed && <span>Tournament Registrations</span>}
           </button>
 
           <button
             onClick={() => setActiveTab('players')}
-            className={`w-full flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-left text-xs uppercase font-black tracking-wider transition-all cursor-pointer ${
+            className={`w-full flex items-center ${sidebarCollapsed ? 'justify-center px-0' : 'gap-2.5 px-3.5'} py-2.5 rounded-xl text-left text-xs uppercase font-black tracking-wider transition-all cursor-pointer ${
               activeTab === 'players' 
                 ? 'bg-gold-500/10 border border-gold-500/30 text-gold-400' 
                 : 'text-neutral-400 hover:text-white hover:bg-white/5 border border-transparent'
             }`}
           >
             <Award className="w-4 h-4" />
-            <span>Player Standings</span>
+            {!sidebarCollapsed && <span>Player Standings</span>}
           </button>
 
           <button
             onClick={() => setActiveTab('weekly_leaderboard_manager')}
-            className={`w-full flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-left text-xs uppercase font-black tracking-wider transition-all cursor-pointer ${
+            className={`w-full flex items-center ${sidebarCollapsed ? 'justify-center px-0' : 'gap-2.5 px-3.5'} py-2.5 rounded-xl text-left text-xs uppercase font-black tracking-wider transition-all cursor-pointer ${
               activeTab === 'weekly_leaderboard_manager' 
                 ? 'bg-gold-500/10 border border-gold-500/30 text-gold-400' 
                 : 'text-neutral-400 hover:text-white hover:bg-white/5 border border-transparent'
             }`}
           >
             <Trophy className="w-4 h-4 text-gold-400" />
-            <span>Weekly Top Players</span>
+            {!sidebarCollapsed && <span>Weekly Top Players</span>}
           </button>
 
           <button
             onClick={() => setActiveTab('winnings_manager')}
-            className={`w-full flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-left text-xs uppercase font-black tracking-wider transition-all cursor-pointer ${
+            className={`w-full flex items-center ${sidebarCollapsed ? 'justify-center px-0' : 'gap-2.5 px-3.5'} py-2.5 rounded-xl text-left text-xs uppercase font-black tracking-wider transition-all cursor-pointer ${
               activeTab === 'winnings_manager' 
                 ? 'bg-gold-500/10 border border-gold-500/30 text-gold-400' 
                 : 'text-neutral-400 hover:text-white hover:bg-white/5 border border-transparent'
             }`}
           >
             <Trophy className="w-4 h-4 text-purple-400" />
-            <span>Winnings Manager</span>
+            {!sidebarCollapsed && <span>Winnings Manager</span>}
           </button>
 
           <button
             onClick={() => setActiveTab('wallet')}
-            className={`w-full flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-left text-xs uppercase font-black tracking-wider transition-all cursor-pointer ${
+            className={`w-full flex items-center ${sidebarCollapsed ? 'justify-center px-0' : 'gap-2.5 px-3.5'} py-2.5 rounded-xl text-left text-xs uppercase font-black tracking-wider transition-all cursor-pointer ${
               activeTab === 'wallet' 
                 ? 'bg-gold-500/10 border border-gold-500/30 text-gold-400' 
                 : 'text-neutral-400 hover:text-white hover:bg-white/5 border border-transparent'
             }`}
           >
             <Wallet className="w-4 h-4" />
-            <span>Wallet Approvals</span>
+            {!sidebarCollapsed && <span>Wallet Approvals</span>}
           </button>
 
           <button
             onClick={() => setActiveTab('promo_announcements')}
-            className={`w-full flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-left text-xs uppercase font-black tracking-wider transition-all cursor-pointer ${
+            className={`w-full flex items-center ${sidebarCollapsed ? 'justify-center px-0' : 'gap-2.5 px-3.5'} py-2.5 rounded-xl text-left text-xs uppercase font-black tracking-wider transition-all cursor-pointer ${
               activeTab === 'promo_announcements' 
                 ? 'bg-gold-500/10 border border-gold-500/30 text-gold-400' 
                 : 'text-neutral-400 hover:text-white hover:bg-white/5 border border-transparent'
             }`}
           >
             <Megaphone className="w-4 h-4" />
-            <span>Promos & Push</span>
+            {!sidebarCollapsed && <span>Promos & Push</span>}
           </button>
 
           <button
             onClick={() => setActiveTab('youtube_management')}
-            className={`w-full flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-left text-xs uppercase font-black tracking-wider transition-all cursor-pointer ${
+            className={`w-full flex items-center ${sidebarCollapsed ? 'justify-center px-0' : 'gap-2.5 px-3.5'} py-2.5 rounded-xl text-left text-xs uppercase font-black tracking-wider transition-all cursor-pointer ${
               activeTab === 'youtube_management' 
                 ? 'bg-gold-500/10 border border-gold-500/30 text-gold-400' 
                 : 'text-neutral-400 hover:text-white hover:bg-white/5 border border-transparent'
             }`}
           >
             <Youtube className="w-4 h-4" />
-            <span>YouTube Management</span>
+            {!sidebarCollapsed && <span>YouTube Management</span>}
           </button>
 
           <button
             onClick={() => setActiveTab('settings_security')}
-            className={`w-full flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-left text-xs uppercase font-black tracking-wider transition-all cursor-pointer ${
+            className={`w-full flex items-center ${sidebarCollapsed ? 'justify-center px-0' : 'gap-2.5 px-3.5'} py-2.5 rounded-xl text-left text-xs uppercase font-black tracking-wider transition-all cursor-pointer ${
               activeTab === 'settings_security' 
                 ? 'bg-gold-500/10 border border-gold-500/30 text-gold-400' 
                 : 'text-neutral-400 hover:text-white hover:bg-white/5 border border-transparent'
             }`}
           >
             <Settings className="w-4 h-4" />
-            <span>App Config & Sys</span>
+            {!sidebarCollapsed && <span>App Config & Sys</span>}
           </button>
 
           <button
             onClick={() => setActiveTab('website_branding')}
-            className={`w-full flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-left text-xs uppercase font-black tracking-wider transition-all cursor-pointer ${
+            className={`w-full flex items-center ${sidebarCollapsed ? 'justify-center px-0' : 'gap-2.5 px-3.5'} py-2.5 rounded-xl text-left text-xs uppercase font-black tracking-wider transition-all cursor-pointer ${
               activeTab === 'website_branding' 
                 ? 'bg-gold-500/10 border border-gold-500/30 text-gold-400' 
                 : 'text-neutral-400 hover:text-white hover:bg-white/5 border border-transparent'
             }`}
           >
             <Paintbrush className="w-4 h-4" />
-            <span>Website Branding</span>
+            {!sidebarCollapsed && <span>Website Branding</span>}
           </button>
 
           <button
             onClick={() => setActiveTab('loading_page_manager')}
-            className={`w-full flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-left text-xs uppercase font-black tracking-wider transition-all cursor-pointer ${
+            className={`w-full flex items-center ${sidebarCollapsed ? 'justify-center px-0' : 'gap-2.5 px-3.5'} py-2.5 rounded-xl text-left text-xs uppercase font-black tracking-wider transition-all cursor-pointer ${
               activeTab === 'loading_page_manager' 
                 ? 'bg-gold-500/10 border border-gold-500/30 text-gold-400' 
                 : 'text-neutral-400 hover:text-white hover:bg-white/5 border border-transparent'
             }`}
           >
             <Gamepad2 className="w-4 h-4 text-purple-400" />
-            <span>🎮 Loading Page Manager</span>
+            {!sidebarCollapsed && <span>🎮 Loading Page Manager</span>}
           </button>
 
           <button
             onClick={() => setActiveTab('support_settings')}
-            className={`w-full flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-left text-xs uppercase font-black tracking-wider transition-all cursor-pointer ${
+            className={`w-full flex items-center ${sidebarCollapsed ? 'justify-center px-0' : 'gap-2.5 px-3.5'} py-2.5 rounded-xl text-left text-xs uppercase font-black tracking-wider transition-all cursor-pointer ${
               activeTab === 'support_settings' 
                 ? 'bg-gold-500/10 border border-gold-500/30 text-gold-400' 
                 : 'text-neutral-400 hover:text-white hover:bg-white/5 border border-transparent'
             }`}
           >
             <MessageCircle className="w-4 h-4" />
-            <span>Support Settings</span>
+            {!sidebarCollapsed && <span>Support Settings</span>}
           </button>
         </nav>
 
         {/* Sidebar Footer */}
-        <div className={`p-4 border-t border-white/5 bg-[#0a0a0f] flex items-center gap-2.5 ${showMobileMenu ? 'flex' : 'hidden md:flex'}`}>
+        <div className="p-4 border-t border-white/5 bg-[#0a0a0f] flex items-center gap-2.5">
           <div className="w-8 h-8 rounded-full bg-neutral-800 flex items-center justify-center font-black text-xs text-neutral-300">
             AD
           </div>
-          <div className="overflow-hidden">
+          {!sidebarCollapsed && (
+          <div className="overflow-hidden transition-opacity duration-300">
             <p className="text-[10px] font-bold text-white uppercase tracking-wider truncate">{userProfile?.nickname || 'Administrator'}</p>
             <p className="text-[8px] text-green-400 flex items-center gap-1 font-semibold">
               <span className="w-1.5 h-1.5 rounded-full bg-green-500 block animate-pulse"></span>
               Secure Firebase Mode
             </p>
           </div>
+          )}
         </div>
       </aside>
 
       {/* MAIN BODY AREA */}
-      <main className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6">
+      <main className="flex-1 flex flex-col h-screen overflow-hidden">
+        {/* GLOBAL ADMIN HEADER */}
+        <header className="shrink-0 bg-[#0d0d14] border-b border-white/5 p-4 flex justify-between items-center z-40">
+          <div className="flex items-center gap-2">
+            <h2 className="text-lg font-black text-white uppercase tracking-wider">Admin Dashboard</h2>
+          </div>
+          <button 
+            onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+            className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-neutral-400 hover:text-white transition-all cursor-pointer border border-white/5 flex items-center justify-center"
+            title="Toggle Menu"
+          >
+            <Menu className="w-5 h-5" />
+          </button>
+        </header>
+        
+        <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6">
         
         {/* VIEW: PAYMENT APPROVAL */}
         {activeTab === 'payment_approval' && (
@@ -2311,6 +2337,18 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
 
                   {/* Row 2 */}
                   <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wide">Match Category (BR/CS)</label>
+                    <select
+                      value={matchForm.matchCategory}
+                      onChange={e => setMatchForm({...matchForm, matchCategory: e.target.value as 'BR' | 'CS'})}
+                      className="w-full bg-neutral-900 border border-white/10 rounded-xl p-2.5 text-xs text-white"
+                    >
+                      <option value="BR">Battle Royale (BR)</option>
+                      <option value="CS">Clash Squad (CS)</option>
+                    </select>
+                  </div>
+
+                  <div className="space-y-1">
                     <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wide">Game Category</label>
                     <select
                       value={matchForm.gameCategory}
@@ -2342,6 +2380,18 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
                     >
                       <option value="paid">Paid Tournament</option>
                       <option value="free">Free Tournament</option>
+                    </select>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wide">Status Toggle</label>
+                    <select
+                      value={matchForm.enabled ? 'true' : 'false'}
+                      onChange={e => setMatchForm({...matchForm, enabled: e.target.value === 'true'})}
+                      className="w-full bg-neutral-900 border border-white/10 rounded-xl p-2.5 text-xs text-white"
+                    >
+                      <option value="true">Enabled (Active)</option>
+                      <option value="false">Disabled (Hidden)</option>
                     </select>
                   </div>
 
@@ -2385,11 +2435,38 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
 
                   {/* Row 3 */}
                   <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wide">Date & Time Schedule</label>
+                    <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wide">Match Date</label>
+                    <input 
+                      type="date"
+                      value={matchForm.matchDate}
+                      onChange={e => setMatchForm({...matchForm, matchDate: e.target.value})}
+                      className="w-full bg-neutral-900 border border-white/10 rounded-xl p-2.5 text-xs text-white font-mono"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wide">Match Time</label>
+                    <input 
+                      type="time"
+                      value={matchForm.matchTime}
+                      onChange={e => setMatchForm({...matchForm, matchTime: e.target.value})}
+                      className="w-full bg-neutral-900 border border-white/10 rounded-xl p-2.5 text-xs text-white font-mono"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wide">Registration Start</label>
                     <input 
                       type="datetime-local"
-                      value={matchForm.dateTime}
-                      onChange={e => setMatchForm({...matchForm, dateTime: e.target.value})}
+                      value={matchForm.registrationStart}
+                      onChange={e => setMatchForm({...matchForm, registrationStart: e.target.value})}
+                      className="w-full bg-neutral-900 border border-white/10 rounded-xl p-2.5 text-xs text-white font-mono"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wide">Registration End</label>
+                    <input 
+                      type="datetime-local"
+                      value={matchForm.registrationEnd}
+                      onChange={e => setMatchForm({...matchForm, registrationEnd: e.target.value})}
                       className="w-full bg-neutral-900 border border-white/10 rounded-xl p-2.5 text-xs text-white font-mono"
                     />
                   </div>
@@ -4642,6 +4719,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
           <AdminBrandingTab />
         )}
 
+        {/* VIEW: BANNER MANAGEMENT */}
+        {activeTab === 'banner_management' && (
+          <AdminBannerManagementTab />
+        )}
+
         {/* VIEW: GAME CATEGORIES MANAGEMENT */}
         {activeTab === 'game_categories' && (
           <AdminCategoriesTab />
@@ -4667,6 +4749,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
           <AdminWinningsManager />
         )}
 
+        </div>
       </main>
     </div>
   );

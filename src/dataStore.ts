@@ -541,58 +541,12 @@ export const DEFAULT_BRANDING = {
   themeMode: 'dark' as const
 };
 
-export const DEFAULT_SUPPORT_SETTINGS: import('./types').SupportWidgetSettings = {
-  whatsappEnabled: true,
-  whatsappGroupLink: 'https://chat.whatsapp.com/your-invite-link',
-  whatsappCommunityLink: 'https://chat.whatsapp.com/your-community-link',
-  whatsappContactNumber: '',
-  whatsappButtonTitle: 'WhatsApp',
-  whatsappButtonDescription: 'Join our WhatsApp Community',
-  whatsappCustomLogo: '',
-
-  telegramEnabled: true,
-  telegramGroupLink: 'https://t.me/your-group',
-  telegramChannelLink: 'https://t.me/your-channel',
-  telegramUsername: '',
-  telegramButtonTitle: 'Telegram',
-  telegramButtonDescription: 'Join our Telegram Community',
-  telegramCustomLogo: '',
-
-  widgetEnabled: true,
-  showOnDesktop: true,
-  showOnTablet: true,
-  showOnMobile: true,
-  showBeforeLogin: true,
-  showAfterLogin: true,
-  
-  floatingIcon: 'message-circle',
-  floatingBgColor: 'rgba(13, 13, 20, 0.7)',
-  floatingSizeDesktop: 48,
-  floatingSizeMobile: 42,
-  iconSizeDesktop: 20,
-  iconSizeMobile: 18,
-  floatingBorderColor: 'rgba(229, 169, 25, 0.3)',
-  floatingOpacity: 1,
-  floatingBorderRadius: 50,
-  floatingGlowEffect: true,
-  floatingShadow: '0 8px 32px rgba(229, 169, 25, 0.2)',
-  
-  floatingPosition: 'bottom-right',
-  floatingMarginX: 20,
-  floatingMarginY: 20,
-  
-  enableDragAndDrop: true,
-  enableSnapToEdge: true,
-  savePositionAutomatically: true,
-
-  pulseAnimation: true,
-  floatingAnimation: false,
-  hoverAnimation: true,
-  clickAnimation: true,
-
-  floatingOpenAnimation: 'bounce',
-  floatingCloseAnimation: 'fade',
-  floatingAutoCloseTimer: 0
+export const DEFAULT_SUPPORT_SETTINGS: import('./types').SupportSettings = {
+  whatsappLink: 'https://wa.me/1234567890',
+  telegramLink: 'https://t.me/yourusername',
+  whatsappStatus: true,
+  telegramStatus: true,
+  updatedAt: Date.now()
 };
 
 export const DEFAULT_WEEKLY_LEADERBOARD_CONFIG: import('./types').WeeklyLeaderboardConfig = {
