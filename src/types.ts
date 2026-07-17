@@ -1,0 +1,438 @@
+/**
+ * @license
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+export interface UserProfile {
+  uid: string;
+  email: string;
+  nickname: string;
+  freefireUid: string; // Free Fire Player ID
+  avatarUrl: string;
+  depositBalance: number; // For match entries only
+  winningBalance: number; // Withdraw-able
+  bonusBalance: number; // Dynamic promo balance
+  referralCode: string; // Dynamic unique referral code (e.g., "VA-XXXX")
+  referredBy?: string; // Referral code used during signup
+  totalMatches: number;
+  totalWins: number;
+  totalKills: number;
+  totalEarnings: number;
+  isNotificationEnabled: boolean;
+  joinedAt: string;
+  role: 'user' | 'admin';
+  fullName?: string;
+  primaryGame?: string;
+  mobileNumber?: string;
+  accountStatus?: 'active' | 'disabled';
+  lastLogin?: string;
+  altMobileNumber?: string;
+  upiId?: string;
+  accountHolderName?: string;
+  state?: string;
+  country?: string;
+}
+
+export type RoomStatusType = 'open' | 'locked' | 'live' | 'completed';
+
+export interface RegistrationTeam {
+  userId: string;
+  governmentName: string;
+  players: {
+    gameName: string;
+    uid: string;
+  }[];
+  registeredAt: string;
+}
+
+export interface Tournament {
+  id: string;
+  title: string;
+  bannerUrl: string;
+  logoUrl: string;
+  entryFee: number;
+  prizePool: number;
+  perKillPrize: number;
+  map: string; // Dynamic maps
+  dateTime: string; // ISO String or human readable
+  roomStatus: RoomStatusType; // "open", "locked" (slots full), "live", "completed"
+  roomID?: string; // Revealed when joined and match is near
+  roomPassword?: string; // Revealed when joined and match is near
+  matchRoomStatus?: "coming_soon" | "room_available" | "match_live" | "match_completed";
+  mode: string;
+  minLevel: number;
+  isEmulatorAllowed: boolean;
+  lastUpdated?: string;
+  updatedBy?: string;
+  isVpnAllowed: boolean;
+  totalSlots: number;
+  joinedSlots: string[]; // List of user UIDs who joined
+  joinedNicknames: {[uid: string]: string}; // UID -> Free Fire Nickname mapping
+  joinedTeams?: RegistrationTeam[]; // Detailed team player registrations
+  maxKillsWinner?: string; // Player Nickname with highest kills
+  isFreeMatch: boolean;
+  rules: string[];
+  liveUrl?: string;
+  gameCategory?: string; // e.g. "Free Fire", "PUBG Mobile", "Clash of Clans"
+  tournamentType?: 'paid' | 'free';
+}
+
+export type TransactionType =
+  | 'deposit_request'
+  | 'deposit_success'
+  | 'deposit_failed'
+  | 'withdraw_request'
+  | 'withdraw_success'
+  | 'withdraw_failed'
+  | 'match_join_fee'
+  | 'match_refund'
+  | 'match_winnings'
+  | 'referral_bonus'
+  | 'bonus_coins';
+
+export interface Transaction {
+  id: string;
+  userId: string;
+  amount: number;
+  type: TransactionType;
+  paymentMethod: 'UPI' | 'Razorpay' | 'Paytm' | 'PhonePe' | 'GPay' | 'System';
+  upiId?: string; // For withdraw or manual deposits
+  referenceNo?: string; // UPI Ref / Transaction ID
+  dateTime: string;
+  status: 'pending' | 'completed' | 'failed' | 'cancelled' | 'pending_verification';
+  description: string;
+}
+
+export interface MatchActivity {
+  id: string;
+  userId: string;
+  tournamentId: string;
+  tournamentTitle: string;
+  entryFee: number;
+  prizePool: number;
+  perKillPrize: number;
+  map: string;
+  dateTime: string;
+  status: 'joined' | 'ongoing' | 'completed';
+  kills?: number;
+  winnings?: number;
+}
+
+export interface AppNotification {
+  id: string;
+  title: string;
+  message: string;
+  type: 'info' | 'alert' | 'winner' | 'system';
+  dateTime: string;
+  isRead: boolean;
+}
+
+export interface LeaderboardEntry {
+  userId: string;
+  nickname: string;
+  freefireUid: string;
+  avatarUrl: string;
+  totalKills: number;
+  totalWins: number;
+  totalEarnings: number;
+}
+
+export interface SupportMessage {
+  id: string;
+  userId?: string;
+  name: string;
+  email: string;
+  message: string;
+  channel: 'telegram' | 'whatsapp' | 'discord' | 'instagram' | 'contact_form';
+  dateTime: string;
+}
+
+export interface PlayerRegistration {
+  id: string; // REG-XXXXXX
+  teamId?: string; // TEAM-XXXXXX
+  userId: string; // User account link
+  userEmail: string; // Account email
+  tournamentId: string;
+  tournamentName: string;
+  matchType: string;
+  entryFee: number;
+  prizePool: number;
+  map: string;
+  dateTime: string; // combined date & time
+  players: {
+    nickname: string;
+    uid: string;
+    level?: string;
+  }[];
+  registeredAt: string;
+  status: 'pending' | 'completed' | 'cancelled';
+  paymentStatus: 'completed' | 'refunded' | 'free';
+  governmentName?: string;
+  totalAmountPaid?: number;
+}
+
+export interface SplashBadge {
+  id: string;
+  text: string;
+  icon: string;
+  iconColor: string;
+  bgColor: string;
+  borderColor: string;
+  enabled: boolean;
+  order: number;
+}
+
+export interface BrandingSettings {
+  // 1. Website Information
+  websiteName: string;
+  websiteShortName: string;
+  websiteTitle: string;
+  browserTabTitle: string;
+  websiteTagline: string;
+  footerCopyrightText: string;
+  footerDescription: string;
+  websiteVersion: string;
+  organizationName: string;
+  contactEmail: string;
+  supportEmail: string;
+
+  // 2. Website Logo (Base64 or URL)
+  mainLogo: string;
+  headerLogo: string;
+  sidebarLogo: string;
+  mobileLogo: string;
+  footerLogo: string;
+  loginLogo: string;
+  registerLogo: string;
+  dashboardLogo: string;
+
+  // 3. Splash Screen
+  splashLogo: string;
+  splashBgImage: string;
+  splashBgColor: string;
+  splashTitle: string;
+  splashSubtitle: string;
+  splashLoadingText: string;
+  splashLoadingAnimation: string; // Fade, Zoom, Glow, Pulse, Slide, Rotate
+  splashProgressBarColor: string;
+  splashProgressBarStyle: string;
+  splashLoadingDuration: number;
+  splashAutoRedirectTime: number;
+
+  // Loading Screen Manager additions
+  splashWebsiteName?: string;
+  splashMainTitle?: string;
+  splashSecondaryTitle?: string;
+  splashFooterText?: string;
+  splashMainLogo?: string;
+  splashCenterIcon?: string;
+  splashFallbackLogo?: string;
+  splashBadges?: SplashBadge[];
+  splashBgGradient?: string;
+  splashBgOverlayColor?: string;
+  splashBgOverlayOpacity?: number;
+  splashBgBlur?: number;
+  splashMainTitleColor?: string;
+  splashSecondaryTitleColor?: string;
+  splashSubtitleColor?: string;
+  splashLoadingTextColor?: string;
+  splashProgressBarBgColor?: string;
+  splashGlowColor?: string;
+  splashShowProgressBar?: boolean;
+  splashProgressBarHeight?: number;
+  splashProgressBarWidth?: string;
+  splashProgressBarRadius?: number;
+  splashProgressBarAnimation?: string;
+  splashMinLoadingTime?: number;
+  splashMaxLoadingTime?: number;
+  splashAllowSkip?: boolean;
+  splashShowPercentage?: boolean;
+  splashShowLoadingText?: boolean;
+  splashLogoAnimation?: string;
+  splashTextAnimation?: string;
+  splashLogoType?: 'titan' | 'custom' | 'icon';
+
+  // 4. Favicon
+  browserFavicon: string;
+  pwaAppIcon: string;
+  androidIcon: string;
+  iphoneIcon: string;
+
+  // 5. Header Settings
+  headerTitle: string;
+  headerSubtitle: string;
+  headerBgColor: string;
+  headerSticky: boolean;
+  headerShowNotifIcon: boolean;
+  headerShowWalletIcon: boolean;
+  headerShowProfileIcon: boolean;
+
+  // 6. Footer Settings
+  footerSocialFacebook: string;
+  footerSocialInstagram: string;
+  footerSocialTelegram: string;
+  footerSocialDiscord: string;
+  footerSocialWhatsapp: string;
+  footerSocialYoutube: string;
+
+  // 7. Login Page
+  loginBgImage: string;
+  loginWelcomeText: string;
+  loginSubtitle: string;
+  loginButtonText: string;
+
+  // 8. Register Page
+  registerBgImage: string;
+  registerWelcomeText: string;
+  registerDescription: string;
+
+  // 9. Loading Screen
+  loadingLogo: string;
+  loadingMainLogo: string;
+  loadingCenterLogo: string;
+  loadingCenterLogoUrl?: string;
+  loadingBackgroundImage: string;
+  loadingText: string;
+  loadingLoadingText?: string;
+  loadingProgressText?: string;
+  loadingSubtitle: string;
+  loadingTitle: string;
+  loadingBackgroundColor: string;
+  loadingDuration: number;
+  loadingPercentageStyle: string;
+  loadingAnimation: string;
+  loadingProgressBarColor: string;
+  loadingProgressBarPosition: string;
+  loadingBgImage: string;
+  loadingBgOverlay: string;
+  loadingBgMusic: string;
+  loadingSoundEffect: string;
+  updatedAt?: number;
+
+  // 10. Color & Theme
+  primaryColor: string;
+  secondaryColor: string;
+  accentColor: string;
+  bgColor: string;
+  cardColor: string;
+  textColor: string;
+  buttonColor: string;
+  borderColor: string;
+  themeMode: 'dark' | 'light' | 'auto';
+}
+
+export interface SupportWidgetSettings {
+  // WhatsApp Settings
+  whatsappEnabled: boolean;
+  whatsappGroupLink: string;
+  whatsappCommunityLink: string;
+  whatsappContactNumber: string;
+  whatsappButtonTitle: string;
+  whatsappButtonDescription: string;
+  whatsappCustomLogo: string;
+
+  // Telegram Settings
+  telegramEnabled: boolean;
+  telegramGroupLink: string;
+  telegramChannelLink: string;
+  telegramUsername: string;
+  telegramButtonTitle: string;
+  telegramButtonDescription: string;
+  telegramCustomLogo: string;
+
+  // Floating Button Settings
+  widgetEnabled: boolean;
+  showOnDesktop: boolean;
+  showOnTablet: boolean;
+  showOnMobile: boolean;
+  showBeforeLogin: boolean;
+  showAfterLogin: boolean;
+  
+  floatingIcon: string;
+  floatingBgColor: string;
+  floatingSizeDesktop: number;
+  floatingSizeMobile: number;
+  iconSizeDesktop: number;
+  iconSizeMobile: number;
+  floatingBorderColor: string;
+  floatingOpacity: number;
+  floatingBorderRadius: number;
+  floatingGlowEffect: boolean;
+  floatingShadow: string;
+  
+  floatingPosition: 'bottom-right' | 'bottom-left' | 'top-right' | 'top-left';
+  floatingMarginX: number;
+  floatingMarginY: number;
+  
+  enableDragAndDrop: boolean;
+  enableSnapToEdge: boolean;
+  savePositionAutomatically: boolean;
+
+  pulseAnimation: boolean;
+  floatingAnimation: boolean;
+  hoverAnimation: boolean;
+  clickAnimation: boolean;
+  
+  floatingOpenAnimation: string;
+  floatingCloseAnimation: string;
+  floatingAutoCloseTimer: number; // 0 means disabled
+}
+
+export interface GameCategory {
+  id: string;
+  name: string;
+  icon?: string; // Lucide icon or URL
+  banner?: string; // Banner URL or Base64
+  enabled: boolean;
+  order: number;
+  updatedAt?: number;
+}
+
+export interface WeeklyPlayer {
+  id: string;
+  name: string;
+  uid: string;
+  gameCategory: 'Free Fire' | 'PUBG Mobile' | 'Clash of Clans';
+  matchesPlayed: number;
+  wins: number;
+  kills: number;
+  prizeWon: number;
+  weeklyPoints: number;
+  winRate: number;
+  kdRatio?: number;
+  rank: number;
+  status: 'active' | 'disabled';
+  verified: boolean;
+  mvp: boolean;
+  profileImage: string;
+  timeframe: 'this_week' | 'last_week' | 'this_month';
+  createdAt?: string;
+}
+
+export interface WeeklyLeaderboardConfig {
+  rankingCriteria: 'weeklyPoints' | 'totalKills' | 'totalWins' | 'totalPrizeWon' | 'matchesPlayed' | 'manual';
+  autoRankingEnabled: boolean;
+}
+
+export interface TournamentWinner {
+  id: string;
+  profileImage: string;
+  name: string;
+  uid: string;
+  gameCategory: 'Free Fire' | 'PUBG Mobile' | 'Clash of Clans';
+  tournamentName: string;
+  matchType: string;
+  tournamentBanner: string;
+  winnerDate: string; // "YYYY-MM-DD" or ISO
+  rank: number;
+  prizeWon: number;
+  kills: number;
+  matchesPlayed: number;
+  mvp: boolean;
+  verified: boolean;
+  pinned: boolean;
+  displayOrder: number;
+  createdAt?: string;
+}
+
+

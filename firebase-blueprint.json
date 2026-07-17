@@ -1,0 +1,137 @@
+{
+  "entities": {
+    "Transaction": {
+      "title": "Transaction",
+      "description": "Records all financial transactions including deposits, withdrawals, and tournament fees.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique transaction ID"
+        },
+        "userId": {
+          "type": "string",
+          "description": "User UID who initiated the transaction"
+        },
+        "amount": {
+          "type": "number",
+          "description": "Transaction value in INR"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "deposit_request",
+            "deposit_success",
+            "deposit_failed",
+            "withdraw_request",
+            "withdraw_success",
+            "withdraw_failed",
+            "match_join_fee",
+            "match_refund",
+            "match_winnings",
+            "referral_bonus",
+            "bonus_coins"
+          ]
+        },
+        "paymentMethod": {
+          "type": "string",
+          "enum": ["UPI", "Razorpay", "Paytm", "PhonePe", "GPay", "System"]
+        },
+        "upiId": {
+          "type": "string",
+          "description": "User's UPI ID for withdrawals or manual deposits"
+        },
+        "referenceNo": {
+          "type": "string",
+          "description": "12-digit UPI UTR / Transaction ID or automated order ID"
+        },
+        "dateTime": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp when transaction was initiated"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["pending", "completed", "failed"]
+        },
+        "description": {
+          "type": "string",
+          "description": "Details about the transaction"
+        }
+      },
+      "required": ["id", "userId", "amount", "type", "paymentMethod", "dateTime", "status"]
+    },
+    "AppSettings": {
+      "title": "AppSettings",
+      "description": "Global application configuration including manual payment settings and merchant gateway keys.",
+      "type": "object",
+      "properties": {
+        "appName": { "type": "string" },
+        "version": { "type": "string" },
+        "downloadLink": { "type": "string" },
+        "logoUrl": { "type": "string" },
+        "themeColor": { "type": "string" },
+        "maintenanceMode": { "type": "boolean" },
+        "upiId": { "type": "string", "description": "Manual UPI ID for deposit QR" },
+        "qrCodeUrl": { "type": "string", "description": "Manual QR Code image URL" },
+        "manualPaymentEnabled": { "type": "boolean", "description": "Enable or disable manual UPI QR payments" },
+        "paymentInstructions": { "type": "string", "description": "Manual UPI payment instructions displayed to user" },
+        "defaultGateway": { "type": "string", "enum": ["manual_upi", "paytm", "phonepe", "razorpay"] },
+        "paytmEnabled": { "type": "boolean" },
+        "paytmMid": { "type": "string" },
+        "paytmMerchantKey": { "type": "string" },
+        "paytmSandbox": { "type": "boolean" },
+        "phonepeEnabled": { "type": "boolean" },
+        "phonepeMerchantId": { "type": "string" },
+        "phonepeSaltKey": { "type": "string" },
+        "phonepeSaltIndex": { "type": "string" },
+        "phonepeSandbox": { "type": "boolean" },
+        "razorpayEnabled": { "type": "boolean" },
+        "razorpayKey": { "type": "string" },
+        "razorpaySecret": { "type": "string" },
+        "razorpaySandbox": { "type": "boolean" }
+      },
+      "required": ["appName", "upiId", "manualPaymentEnabled", "defaultGateway"]
+    },
+    "TournamentWinner": {
+      "title": "TournamentWinner",
+      "description": "Information about a tournament winner displayed on the Winnings Page.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "profileImage": { "type": "string" },
+        "name": { "type": "string" },
+        "uid": { "type": "string" },
+        "gameCategory": { "type": "string", "enum": ["Free Fire", "PUBG Mobile", "Clash of Clans"] },
+        "tournamentName": { "type": "string" },
+        "matchType": { "type": "string" },
+        "tournamentBanner": { "type": "string" },
+        "winnerDate": { "type": "string" },
+        "rank": { "type": "number" },
+        "prizeWon": { "type": "number" },
+        "kills": { "type": "number" },
+        "matchesPlayed": { "type": "number" },
+        "mvp": { "type": "boolean" },
+        "verified": { "type": "boolean" },
+        "pinned": { "type": "boolean" },
+        "displayOrder": { "type": "number" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "name", "uid", "gameCategory", "tournamentName", "rank", "prizeWon"]
+    }
+  },
+  "firestore": {
+    "/transactions/{transactionId}": {
+      "schema": "Transaction",
+      "description": "Collection of all transactions."
+    },
+    "/appSettings/general": {
+      "schema": "AppSettings",
+      "description": "Singleton configuration document."
+    },
+    "/winners/{winnerId}": {
+      "schema": "TournamentWinner",
+      "description": "Collection of all tournament winners."
+    }
+  }
+}
