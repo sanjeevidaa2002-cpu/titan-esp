@@ -9,7 +9,9 @@ export const DEFAULT_CATEGORIES: GameCategory[] = [
   { id: 'free_fire', name: 'Free Fire', icon: 'Gamepad2', enabled: true, order: 1 },
   { id: 'pubg_mobile', name: 'PUBG Mobile', icon: 'Flame', enabled: true, order: 2 },
   { id: 'clash_of_clans', name: 'Clash of Clans', icon: 'Trophy', enabled: true, order: 3 },
-  { id: 'free_tournaments', name: 'Free Tournaments', icon: 'Award', enabled: true, order: 4 }
+  { id: 'free_tournaments', name: 'Free Tournaments', icon: 'Award', enabled: true, order: 4 },
+  { id: 'free_match', name: 'Free Match', icon: '🆓', enabled: true, order: 5 },
+  { id: 'hacker_match', name: 'Hacker Match', icon: '🛡️', enabled: true, order: 6 }
 ];
 
 export const FF_AVATARS = [

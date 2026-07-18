@@ -28,7 +28,9 @@ const getCategoryDefaultEmoji = (id: string, name: string): string => {
   if (normId === 'free_fire' || normName.includes('free fire')) return '🔥';
   if (normId === 'pubg_mobile' || normName.includes('pubg')) return '🎯';
   if (normId === 'clash_of_clans' || normName.includes('clash')) return '🏰';
-  if (normId === 'free_tournaments' || normName.includes('free')) return '🆓';
+  if (normId === 'free_tournaments' || normName.includes('free tournament')) return '🆓';
+  if (normId === 'free_match' || normName.includes('free match')) return '🆓';
+  if (normId === 'hacker_match' || normName.includes('hacker')) return '🛡️';
   return '🎮';
 };
 
@@ -52,7 +54,7 @@ const CategoryCard: React.FC<CategoryCardProps> = ({
   isLast,
   triggerNotification
 }) => {
-  const isDefaultCategory = ['free_fire', 'pubg_mobile', 'clash_of_clans', 'free_tournaments'].includes(category.id);
+  const isDefaultCategory = ['free_fire', 'pubg_mobile', 'clash_of_clans', 'free_tournaments', 'free_match', 'hacker_match'].includes(category.id);
 
   // Determine current active icon format
   const getIconFormat = (iconVal: string): 'emoji' | 'url' | 'upload' => {

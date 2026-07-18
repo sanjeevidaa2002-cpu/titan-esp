@@ -346,6 +346,16 @@ const DEFAULT_LOADING_SCREEN: LoadingScreenSettings = {
         for (const cat of DEFAULT_CATEGORIES) {
           await setDoc(doc(db, 'categories', cat.id), cat);
         }
+      } else {
+        console.log("Categories exist. Checking for missing required categories...");
+        for (const cat of DEFAULT_CATEGORIES) {
+          const catRef = doc(db, 'categories', cat.id);
+          const catDoc = await getDoc(catRef);
+          if (!catDoc.exists()) {
+            console.log(`Seeding missing category: ${cat.id}`);
+            await setDoc(catRef, cat);
+          }
+        }
       }
 
       const wpCol = collection(db, 'weekly_players');

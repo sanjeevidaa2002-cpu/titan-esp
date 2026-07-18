@@ -374,7 +374,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
     tournamentType: 'paid' | 'free';
     enabled: boolean;
     matchCategory: 'BR' | 'CS';
-    gameName: 'Free Fire' | 'PUBG Mobile' | 'Hacker Match';
+    gameName: 'Free Fire' | 'PUBG Mobile' | 'Hacker Match' | 'Free Match';
     category: 'BR' | 'CS';
     matchType: 'Solo' | 'Duo' | 'Squad';
   }>({
@@ -1002,7 +1002,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
 
   const openEditMatchForm = (t: Tournament) => {
     setIsEditingMatch(t.id);
-    const legacyGameName = t.gameCategory === 'pubg_mobile' ? 'PUBG Mobile' : t.gameCategory === 'hacker_match' ? 'Hacker Match' : 'Free Fire';
+    const legacyGameName = t.gameCategory === 'pubg_mobile' ? 'PUBG Mobile' : t.gameCategory === 'hacker_match' ? 'Hacker Match' : t.gameCategory === 'free_match' ? 'Free Match' : 'Free Fire';
     setMatchForm({
       id: t.id,
       title: t.title,
@@ -1087,7 +1087,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
       const finalEntryFee = isFree ? 0 : matchForm.entryFee;
       const finalIsFreeMatch = isFree ? true : matchForm.isFreeMatch;
 
-      const legacyGameCategory = matchForm.gameName === 'PUBG Mobile' ? 'pubg_mobile' : matchForm.gameName === 'Hacker Match' ? 'hacker_match' : 'free_fire';
+      const legacyGameCategory = matchForm.gameName === 'PUBG Mobile' ? 'pubg_mobile' : matchForm.gameName === 'Hacker Match' ? 'hacker_match' : matchForm.gameName === 'Free Match' ? 'free_match' : 'free_fire';
 
       const matchData: Tournament = {
         ...matchForm,
@@ -2466,14 +2466,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
                     <select
                       value={matchForm.gameName}
                       onChange={e => {
-                        const val = e.target.value as 'Free Fire' | 'PUBG Mobile' | 'Hacker Match';
-                        const legacyCat = val === 'PUBG Mobile' ? 'pubg_mobile' : val === 'Hacker Match' ? 'hacker_match' : 'free_fire';
+                        const val = e.target.value as 'Free Fire' | 'PUBG Mobile' | 'Hacker Match' | 'Free Match';
+                        const legacyCat = val === 'PUBG Mobile' ? 'pubg_mobile' : val === 'Hacker Match' ? 'hacker_match' : val === 'Free Match' ? 'free_match' : 'free_fire';
                         setMatchForm({...matchForm, gameName: val, gameCategory: legacyCat});
                       }}
                       className="w-full bg-neutral-900 border border-white/10 rounded-xl p-2.5 text-xs text-white font-extrabold"
                     >
                       <option value="Free Fire">🎮 Free Fire</option>
                       <option value="PUBG Mobile">🎮 PUBG Mobile</option>
+                      <option value="Free Match">🆓 Free Match</option>
                       <option value="Hacker Match">🛡️ Hacker Match</option>
                     </select>
                   </div>
