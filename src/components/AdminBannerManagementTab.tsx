@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import { useGame } from '../context/GameContext';
 import { 
-  Plus, Edit2, Trash2, Save, X, Image as ImageIcon, CheckCircle, Upload
+  Plus, Edit2, Trash2, Save, X, Image as ImageIcon, CheckCircle, Upload, FolderClosed
 } from 'lucide-react';
 import { HomepageBanner } from '../types';
-import { storage } from '../firebase';
-import { ref, uploadBytes, getDownloadURL, uploadBytesResumable } from 'firebase/storage';
+import { uploadFileWithFallback } from '../utils/uploadHelper';
+import { MediaPickerModal } from './MediaPickerModal';
 
 export const AdminBannerManagementTab: React.FC = () => {
   const { homepageBanners, saveHomepageBannerAdmin, deleteHomepageBannerAdmin } = useGame();
@@ -13,6 +13,7 @@ export const AdminBannerManagementTab: React.FC = () => {
   const [editingBanner, setEditingBanner] = useState<Partial<HomepageBanner> | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
+  const [showPicker, setShowPicker] = useState(false);
 
   const activeBanners = [...homepageBanners].sort((a, b) => a.displayOrder - b.displayOrder);
 
@@ -75,30 +76,23 @@ export const AdminBannerManagementTab: React.FC = () => {
     });
   };
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file && editingBanner) {
       setUploadProgress(0);
-      const fileRef = ref(storage, `banners/banner_${Date.now()}_${file.name}`);
-      const uploadTask = uploadBytesResumable(fileRef, file);
-
-      uploadTask.on(
-        'state_changed',
-        (snapshot) => {
-          const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-          setUploadProgress(progress);
-        },
-        (error) => {
-          console.error("Upload error:", error);
-          alert("Failed to upload image.");
-          setUploadProgress(null);
-        },
-        async () => {
-          const downloadUrl = await getDownloadURL(uploadTask.snapshot.ref);
-          setEditingBanner({ ...editingBanner, imageUrl: downloadUrl });
-          setUploadProgress(null);
-        }
-      );
+      try {
+        const uploadResult = await uploadFileWithFallback(
+          file,
+          `banners/banner_${Date.now()}_${file.name}`,
+          (progress) => setUploadProgress(progress)
+        );
+        setEditingBanner(prev => prev ? { ...prev, imageUrl: uploadResult.url } : null);
+      } catch (err: any) {
+        console.error("Upload error:", err);
+        alert(`Failed to upload image: ${err.message || err}`);
+      } finally {
+        setUploadProgress(null);
+      }
     }
   };
 
@@ -189,7 +183,16 @@ export const AdminBannerManagementTab: React.FC = () => {
 
               <div className="space-y-4">
                 <div>
-                  <label className="text-[10px] text-neutral-400 font-bold uppercase tracking-wider block mb-2">Banner Image</label>
+                  <div className="flex justify-between items-center mb-2">
+                    <label className="text-[10px] text-neutral-400 font-bold uppercase tracking-wider block">Banner Image</label>
+                    <button
+                      type="button"
+                      onClick={() => setShowPicker(true)}
+                      className="text-[9px] font-bold uppercase text-gold-400 hover:text-gold-300 flex items-center gap-1 bg-gold-500/10 border border-gold-500/20 px-2 py-0.5 rounded transition-colors"
+                    >
+                      <FolderClosed className="w-2.5 h-2.5" /> Select from Storage
+                    </button>
+                  </div>
                   
                   <div className="space-y-3">
                     <input
@@ -319,6 +322,18 @@ export const AdminBannerManagementTab: React.FC = () => {
             </div>
           )}
         </div>
+      )}
+
+      {showPicker && editingBanner && (
+        <MediaPickerModal
+          onSelect={(url) => {
+            setEditingBanner({ ...editingBanner, imageUrl: url });
+            setShowPicker(false);
+          }}
+          onClose={() => setShowPicker(false)}
+          allowedTypes={['image']}
+          title="Select Banner Image"
+        />
       )}
     </div>
   );

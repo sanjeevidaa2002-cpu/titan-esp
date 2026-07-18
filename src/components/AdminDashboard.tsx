@@ -7,7 +7,7 @@ import { LogOut } from "lucide-react";
 import React, { useState, useEffect } from 'react';
 import { useGame } from '../context/GameContext';
 import { db, storage } from '../firebase';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { uploadFileWithFallback } from '../utils/uploadHelper';
 import { 
   collection, 
   getDocs, 
@@ -72,6 +72,8 @@ import {
   Paintbrush,
   MessageCircle,
   Trophy,
+  FolderClosed,
+  Cloud,
   Image as ImageIcon
 } from 'lucide-react';
 import { 
@@ -90,6 +92,8 @@ import { AdminSupportSettingsTab } from './AdminSupportSettingsTab';
 import { AdminBannerManagementTab } from './AdminBannerManagementTab';
 import { AdminBonusManagementTab } from './AdminBonusManagementTab';
 import { LoadingPageManager } from './LoadingPageManager';
+import { StorageManager } from './StorageManager';
+import { MediaPickerModal } from './MediaPickerModal';
 import { AdminCategoriesTab } from './AdminCategoriesTab';
 import { AdminWeeklyLeaderboardTab as WeeklyTopPlayersManager } from './AdminWeeklyLeaderboardTab';
 import { AdminWinningsManager } from './AdminWinningsManager';
@@ -122,11 +126,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
 
   // States
   const [sidebarCollapsed, setSidebarCollapsed] = useState(window.innerWidth < 1200);
-  const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'tournaments' | 'players' | 'wallet' | 'promo_announcements' | 'settings_security' | 'youtube_management' | 'registrations' | 'payment_approval' | 'website_branding' | 'support_settings' | 'loading_page_manager' | 'game_categories' | 'weekly_leaderboard_manager' | 'winnings_manager' | 'banner_management' | 'bonus_management'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'tournaments' | 'players' | 'wallet' | 'promo_announcements' | 'settings_security' | 'youtube_management' | 'registrations' | 'payment_approval' | 'website_branding' | 'support_settings' | 'loading_page_manager' | 'game_categories' | 'weekly_leaderboard_manager' | 'winnings_manager' | 'banner_management' | 'bonus_management' | 'storage_manager'>('overview');
   const [dbUsers, setDbUsers] = useState<UserProfile[]>([]);
   const [dbTransactions, setDbTransactions] = useState<Transaction[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(true);
   const [searchUserQuery, setSearchUserQuery] = useState('');
+  const [showStoragePicker, setShowStoragePicker] = useState(false);
   
   // Audit Logs
   const [auditLogs, setAuditLogs] = useState<{ id: string; action: string; timestamp: string; admin: string }[]>([
@@ -1011,10 +1016,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
 
     setIsUploadingThumbnail(true);
     try {
-      const storageRef = ref(storage, `tournaments/${matchForm.id}/thumbnail_${Date.now()}_${file.name}`);
-      await uploadBytes(storageRef, file);
-      const url = await getDownloadURL(storageRef);
-      setMatchForm({ ...matchForm, bannerUrl: url });
+      const uploadResult = await uploadFileWithFallback(
+        file,
+        `tournaments/${matchForm.id}/thumbnail_${Date.now()}_${file.name}`
+      );
+      setMatchForm({ ...matchForm, bannerUrl: uploadResult.url });
     } catch (err: any) {
       console.error('Thumbnail upload failed:', err);
       alert('Failed to upload thumbnail: ' + err.message);
@@ -1783,6 +1789,18 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
           >
             <Gamepad2 className="w-4 h-4 text-purple-400" />
             {!sidebarCollapsed && <span>🎮 Loading Page Manager</span>}
+          </button>
+
+          <button
+            onClick={() => setActiveTab('storage_manager')}
+            className={`w-full flex items-center ${sidebarCollapsed ? 'justify-center px-0' : 'gap-2.5 px-3.5'} py-2.5 rounded-xl text-left text-xs uppercase font-black tracking-wider transition-all cursor-pointer ${
+              activeTab === 'storage_manager' 
+                ? 'bg-gold-500/10 border border-gold-500/30 text-gold-400' 
+                : 'text-neutral-400 hover:text-white hover:bg-white/5 border border-transparent'
+            }`}
+          >
+            <Cloud className="w-4 h-4 text-amber-400" />
+            {!sidebarCollapsed && <span>☁️ Cloud Storage & API Settings</span>}
           </button>
 
           <button
@@ -2674,7 +2692,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
 
                     <div className="flex flex-col md:flex-row gap-4 mt-2">
                       <div className="flex-1 space-y-1">
-                        <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wide">Upload Thumbnail Image (PNG, JPG, WEBP)</label>
+                        <div className="flex justify-between items-center mb-1">
+                          <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wide">Upload Thumbnail Image (PNG, JPG, WEBP)</label>
+                          <button
+                            type="button"
+                            onClick={() => setShowStoragePicker(true)}
+                            className="text-[9px] font-bold uppercase text-gold-400 hover:text-gold-300 flex items-center gap-1 bg-gold-500/10 border border-gold-500/20 px-2 py-0.5 rounded transition-colors"
+                          >
+                            📁 Select from Storage
+                          </button>
+                        </div>
                         <div className="relative">
                           <input 
                             type="file"
@@ -4756,6 +4783,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
           <LoadingPageManager />
         )}
 
+        {/* VIEW: STORAGE MANAGER */}
+        {activeTab === 'storage_manager' && (
+          <StorageManager />
+        )}
+
         {/* VIEW: WEEKLY TOP PLAYERS LEADERBOARD MANAGER */}
         {activeTab === 'weekly_leaderboard_manager' && (
           <WeeklyTopPlayersManager />
@@ -4768,6 +4800,18 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
 
         </div>
       </main>
+
+      {showStoragePicker && (
+        <MediaPickerModal
+          onSelect={(url) => {
+            setMatchForm({ ...matchForm, bannerUrl: url });
+            setShowStoragePicker(false);
+          }}
+          onClose={() => setShowStoragePicker(false)}
+          allowedTypes={['image']}
+          title="Select Tournament Thumbnail"
+        />
+      )}
     </div>
   );
 };

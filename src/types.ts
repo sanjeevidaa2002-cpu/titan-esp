@@ -458,3 +458,48 @@ export interface LoadingScreenSettings {
   loadingImageUrl?: string;
   updatedBy?: string;
 }
+
+export interface StorageFile {
+  id: string;
+  fileId: string;
+  fileName: string;
+  fileType: string;
+  fileSize: number;
+  storageProvider: 'firebase' | 'gdrive' | 's3' | 'r2';
+  fileUrl: string;
+  thumbnailUrl?: string;
+  uploadedBy: string;
+  uploadedAt: number;
+  updatedAt: number;
+}
+
+export interface StorageSettings {
+  provider: 'firebase' | 'gdrive' | 's3' | 'r2';
+  gdriveFolderId?: string;
+  gdriveApiKey?: string;
+  gdriveClientId?: string;
+  s3Bucket?: string;
+  s3AccessKey?: string;
+  s3SecretKey?: string;
+  s3Endpoint?: string;
+  
+  // Advanced database fields matching user's spec
+  activeProvider?: 'firebase' | 'gdrive' | 's3' | 'r2';
+  googleDriveApiKey?: string;
+  googleDriveFolderId?: string;
+  googleOAuthClientId?: string;
+  googleOAuthClientSecret?: string;
+  googleRedirectUri?: string;
+  googleProjectId?: string;
+  firebaseApiKey?: string;
+  firebaseAuthDomain?: string;
+  firebaseProjectId?: string;
+  firebaseStorageBucket?: string;
+  firebaseMessagingSenderId?: string;
+  firebaseAppId?: string;
+  firebaseMeasurementId?: string;
+  connectionStatus?: 'connected' | 'disconnected' | 'error' | 'pending';
+  updatedAt?: number;
+  updatedBy?: string;
+}
+

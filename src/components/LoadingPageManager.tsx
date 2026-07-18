@@ -6,8 +6,7 @@
 import React, { useState, useEffect } from 'react';
 import { useGame } from '../context/GameContext';
 import { Upload, ImageIcon, Check, Loader2, Save, Trash2, RotateCcw, X } from 'lucide-react';
-import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
-import { storage } from '../firebase';
+import { uploadFileWithFallback } from '../utils/uploadHelper';
 import { LoadingScreenSettings } from '../types';
 import { TitanEsportsLogo } from './TitanEsportsLogo';
 
@@ -70,63 +69,46 @@ export const LoadingPageManager: React.FC = () => {
 
     setUploadStatus('uploading');
     try {
-      // 1. Create a unique path in Firebase Storage
-      const storageRef = ref(storage, `loading_screens/${Date.now()}_${file.name}`);
-      const uploadTask = uploadBytesResumable(storageRef, file);
-
-      uploadTask.on('state_changed',
-        (snapshot) => {
-          const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-          setUploadProgress(Math.round(progress));
-        },
-        (error) => {
-          console.error("Storage Error during upload:", error);
-          setUploadStatus('error');
-          setUploadError(`Storage Error: ${error.message}`);
-        },
-        async () => {
-          try {
-            const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
-            
-            // Implement cache busting
-            const timestamp = Date.now();
-            const cacheBustedUrl = `${downloadURL}${downloadURL.includes('?') ? '&' : '?'}v=${timestamp}`;
-
-            // Create updated settings
-            const updatedSettings: LoadingScreenSettings = {
-              ...localSettings,
-              loadingLogoUrl: cacheBustedUrl,
-              loadingImageUrl: cacheBustedUrl,
-              uploadedLogoUrl: cacheBustedUrl,
-              loadingLogoType: 'upload',
-              loadingLogoSource: 'upload',
-              updatedAt: timestamp,
-              updatedBy: currentUser?.email || 'titangaming4m@gmail.com'
-            };
-
-            // Instant DB Update
-            await updateLoadingScreenSettings(updatedSettings);
-
-            // Update local states
-            setLocalSettings(updatedSettings);
-            setImgError(false);
-            setUploadStatus('success');
-            setSaveSuccess("Upload Successful & Loading Screen Updated!");
-            setTimeout(() => {
-              setSaveSuccess(null);
-              setUploadStatus('idle');
-            }, 4000);
-          } catch (dbError: any) {
-            console.error("Database Update Error:", dbError);
-            setUploadStatus('error');
-            setUploadError(`Database Update Error: ${dbError.message}`);
-          }
-        }
+      const uploadResult = await uploadFileWithFallback(
+        file,
+        `loading_screens/${Date.now()}_${file.name}`,
+        (progress) => setUploadProgress(progress)
       );
+
+      const downloadURL = uploadResult.url;
+      
+      // Implement cache busting
+      const timestamp = Date.now();
+      const cacheBustedUrl = `${downloadURL}${downloadURL.includes('?') ? '&' : '?'}v=${timestamp}`;
+
+      // Create updated settings
+      const updatedSettings: LoadingScreenSettings = {
+        ...localSettings,
+        loadingLogoUrl: cacheBustedUrl,
+        loadingImageUrl: cacheBustedUrl,
+        uploadedLogoUrl: cacheBustedUrl,
+        loadingLogoType: 'upload',
+        loadingLogoSource: 'upload',
+        updatedAt: timestamp,
+        updatedBy: currentUser?.email || 'titangaming4m@gmail.com'
+      };
+
+      // Instant DB Update
+      await updateLoadingScreenSettings(updatedSettings);
+
+      // Update local states
+      setLocalSettings(updatedSettings);
+      setImgError(false);
+      setUploadStatus('success');
+      setSaveSuccess("Upload Successful & Loading Screen Updated!");
+      setTimeout(() => {
+        setSaveSuccess(null);
+        setUploadStatus('idle');
+      }, 4000);
     } catch (err: any) {
       console.error("Upload error:", err);
       setUploadStatus('error');
-      setUploadError(`Upload Failed: ${err.message || err}`);
+      setUploadError(`Upload/Database Error: ${err.message || err}`);
     }
   };
 

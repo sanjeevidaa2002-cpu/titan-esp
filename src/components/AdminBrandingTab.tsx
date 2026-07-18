@@ -4,8 +4,7 @@ import { Paintbrush, Save, RotateCcw, Image as ImageIcon, Check, X, RefreshCw } 
 import { ImageField } from './ImageField';
 import { BrandingSettings } from '../types';
 import { DEFAULT_BRANDING } from '../dataStore';
-import { storage } from '../firebase';
-import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
+import { uploadFileWithFallback } from '../utils/uploadHelper';
 
 import { compressImage } from '../utils/imageUtils';
 
@@ -135,65 +134,55 @@ export const AdminBrandingTab: React.FC = () => {
         // Compress first
         const compressedDataUrl = await compressImage(file, 0.1, 512);
         
-        // Convert DataURL to Blob
+        // Convert DataURL to Blob/File
         const response = await fetch(compressedDataUrl);
         const blob = await response.blob();
+        const uploadFile = new File([blob], file.name, { type: file.type || 'image/jpeg' });
         
-        // Upload to storage
-        const storageRef = ref(storage, `branding/${field}/${Date.now()}_${file.name}`);
-        const uploadTask = uploadBytesResumable(storageRef, blob);
-        
-        uploadTask.on('state_changed', 
-          (snapshot) => {
-            const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-            setUploadProgress(prev => ({ ...prev, [field]: progress }));
-          },
-          (error) => {
-            console.error("Upload failed", error);
-            triggerNotification("Error", "Failed to upload image.", "alert");
-            setIsSaving(false);
-            setUploadProgress(prev => ({ ...prev, [field]: 0 }));
-          },
-          async () => {
-            const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
-            const cacheBustedUrl = `${downloadURL}${downloadURL.includes('?') ? '&' : '?'}v=${Date.now()}`;
-            const newSettings = { ...localSettings, [field]: cacheBustedUrl };
-            
-            if (field === 'loadingMainLogo') {
-              newSettings.loadingLogo = cacheBustedUrl;
-              newSettings.splashLogo = cacheBustedUrl;
-            } else if (field === 'loadingLogo') {
-              newSettings.loadingMainLogo = cacheBustedUrl;
-              newSettings.splashLogo = cacheBustedUrl;
-            } else if (field === 'splashLogo') {
-              newSettings.loadingMainLogo = cacheBustedUrl;
-              newSettings.loadingLogo = cacheBustedUrl;
-            } else if (field === 'loadingCenterLogo') {
-              newSettings.splashFallbackLogo = cacheBustedUrl;
-            } else if (field === 'splashFallbackLogo') {
-              newSettings.loadingCenterLogo = cacheBustedUrl;
-            } else if (field === 'loadingBackgroundImage') {
-              newSettings.loadingBgImage = cacheBustedUrl;
-              newSettings.splashBgImage = cacheBustedUrl;
-            } else if (field === 'loadingBgImage') {
-              newSettings.loadingBackgroundImage = cacheBustedUrl;
-              newSettings.splashBgImage = cacheBustedUrl;
-            } else if (field === 'splashBgImage') {
-              newSettings.loadingBackgroundImage = cacheBustedUrl;
-              newSettings.loadingBgImage = cacheBustedUrl;
-            }
-
-            try {
-              await updateBrandingSettings(newSettings);
-              handleChange(field, cacheBustedUrl);
-              triggerNotification("Success", "Loading Page Updated Successfully.", "success");
-            } catch (e: any) {
-              triggerNotification("Error", "Failed to save image to database.", "alert");
-            }
-            setIsSaving(false);
-            setUploadProgress(prev => ({ ...prev, [field]: 0 }));
-          }
+        // Upload to storage with fallback
+        const uploadResult = await uploadFileWithFallback(
+          uploadFile,
+          `branding/${field}/${Date.now()}_${file.name}`,
+          (progress) => setUploadProgress(prev => ({ ...prev, [field]: progress }))
         );
+        
+        const downloadURL = uploadResult.url;
+        const cacheBustedUrl = `${downloadURL}${downloadURL.includes('?') ? '&' : '?'}v=${Date.now()}`;
+        const newSettings = { ...localSettings, [field]: cacheBustedUrl };
+        
+        if (field === 'loadingMainLogo') {
+          newSettings.loadingLogo = cacheBustedUrl;
+          newSettings.splashLogo = cacheBustedUrl;
+        } else if (field === 'loadingLogo') {
+          newSettings.loadingMainLogo = cacheBustedUrl;
+          newSettings.splashLogo = cacheBustedUrl;
+        } else if (field === 'splashLogo') {
+          newSettings.loadingMainLogo = cacheBustedUrl;
+          newSettings.loadingLogo = cacheBustedUrl;
+        } else if (field === 'loadingCenterLogo') {
+          newSettings.splashFallbackLogo = cacheBustedUrl;
+        } else if (field === 'splashFallbackLogo') {
+          newSettings.loadingCenterLogo = cacheBustedUrl;
+        } else if (field === 'loadingBackgroundImage') {
+          newSettings.loadingBgImage = cacheBustedUrl;
+          newSettings.splashBgImage = cacheBustedUrl;
+        } else if (field === 'loadingBgImage') {
+          newSettings.loadingBackgroundImage = cacheBustedUrl;
+          newSettings.splashBgImage = cacheBustedUrl;
+        } else if (field === 'splashBgImage') {
+          newSettings.loadingBackgroundImage = cacheBustedUrl;
+          newSettings.loadingBgImage = cacheBustedUrl;
+        }
+
+        try {
+          await updateBrandingSettings(newSettings);
+          handleChange(field, cacheBustedUrl);
+          triggerNotification("Success", "Branding image updated successfully.", "success");
+        } catch (e: any) {
+          triggerNotification("Error", "Failed to save image configuration to database.", "alert");
+        }
+        setIsSaving(false);
+        setUploadProgress(prev => ({ ...prev, [field]: 0 }));
       } catch (error) {
         console.error("Error processing/uploading image", error);
         triggerNotification("Error", "Failed to process image.", "alert");

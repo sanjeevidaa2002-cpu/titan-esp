@@ -49,7 +49,9 @@ import {
   WeeklyPlayer,
   WeeklyLeaderboardConfig,
   TournamentWinner,
-  HomepageBanner
+  HomepageBanner,
+  StorageFile,
+  StorageSettings
 } from '../types';
 import { 
   MOCK_TOURNAMENTS, 
@@ -125,6 +127,12 @@ interface GameContextProps {
   homepageBanners: HomepageBanner[];
   saveHomepageBannerAdmin: (banner: HomepageBanner) => Promise<void>;
   deleteHomepageBannerAdmin: (id: string) => Promise<void>;
+
+  storageFiles: StorageFile[];
+  storageSettings: StorageSettings;
+  saveStorageFileAdmin: (file: Omit<StorageFile, 'id'> & { id?: string }) => Promise<void>;
+  deleteStorageFileAdmin: (id: string) => Promise<void>;
+  updateStorageSettingsAdmin: (settings: Partial<StorageSettings>) => Promise<void>;
 }
 
 const GameContext = createContext<GameContextProps | undefined>(undefined);
@@ -174,6 +182,8 @@ const DEFAULT_LOADING_SCREEN: LoadingScreenSettings = {
   const [weeklyLeaderboardConfig, setWeeklyLeaderboardConfig] = useState<WeeklyLeaderboardConfig>(DEFAULT_WEEKLY_LEADERBOARD_CONFIG);
   const [winners, setWinners] = useState<TournamentWinner[]>([]);
   const [homepageBanners, setHomepageBanners] = useState<HomepageBanner[]>([]);
+  const [storageFiles, setStorageFiles] = useState<StorageFile[]>([]);
+  const [storageSettings, setStorageSettings] = useState<StorageSettings>({ provider: 'firebase' });
 
 
   // Helper: Create initial database structure (Seed Data) if empty in Firestore
@@ -553,6 +563,37 @@ const DEFAULT_LOADING_SCREEN: LoadingScreenSettings = {
         }
       );
 
+      // Realtime storage files listener
+      const unsubStorageFiles = onSnapshot(collection(db, 'storage_files'),
+        (snapshot) => {
+          const list: StorageFile[] = [];
+          snapshot.forEach((doc) => {
+            list.push({ id: doc.id, ...doc.data() } as StorageFile);
+          });
+          list.sort((a, b) => b.uploadedAt - a.uploadedAt);
+          setStorageFiles(list);
+        },
+        (err) => {
+          console.warn("Storage Files sync error:", err);
+        }
+      );
+
+      // Realtime storage settings listener
+      const unsubStorageSettings = onSnapshot(doc(db, 'settings', 'storage'),
+        (docSnap) => {
+          if (docSnap.exists()) {
+            setStorageSettings(docSnap.data() as StorageSettings);
+          } else {
+            const defaults: StorageSettings = { provider: 'firebase' };
+            setDoc(doc(db, 'settings', 'storage'), defaults).catch(console.error);
+            setStorageSettings(defaults);
+          }
+        },
+        (err) => {
+          console.warn("Storage Settings sync error:", err);
+        }
+      );
+
       setLoading(false);
 
       return () => {
@@ -568,6 +609,8 @@ const DEFAULT_LOADING_SCREEN: LoadingScreenSettings = {
         unsubWinners();
         unsubWeeklyLeaderboardConfig();
         unsubBanners();
+        unsubStorageFiles();
+        unsubStorageSettings();
       };
     });
   }, [useLocalFallback]);
@@ -1907,6 +1950,43 @@ const DEFAULT_LOADING_SCREEN: LoadingScreenSettings = {
     }
   };
 
+  const saveStorageFileAdmin = async (fileData: Omit<StorageFile, 'id'> & { id?: string }) => {
+    const docId = fileData.id || fileData.fileId || `file_${Date.now()}`;
+    const timestamp = Date.now();
+    const completeFile: StorageFile = {
+      ...fileData,
+      id: docId,
+      updatedAt: timestamp,
+      uploadedAt: fileData.uploadedAt || timestamp
+    };
+
+    setStorageFiles(prev => {
+      const exists = prev.some(f => f.id === docId);
+      if (exists) {
+        return prev.map(f => f.id === docId ? completeFile : f);
+      }
+      return [completeFile, ...prev];
+    });
+
+    if (!useLocalFallback) {
+      await setDoc(doc(db, 'storage_files', docId), completeFile);
+    }
+  };
+
+  const deleteStorageFileAdmin = async (id: string) => {
+    setStorageFiles(prev => prev.filter(f => f.id !== id));
+    if (!useLocalFallback) {
+      await deleteDoc(doc(db, 'storage_files', id));
+    }
+  };
+
+  const updateStorageSettingsAdmin = async (settings: Partial<StorageSettings>) => {
+    setStorageSettings(prev => ({ ...prev, ...settings }));
+    if (!useLocalFallback) {
+      await setDoc(doc(db, 'settings', 'storage'), settings, { merge: true });
+    }
+  };
+
   // 7.7 Weekly Leaderboard Admin Actions
   const saveWeeklyPlayerAdmin = async (player: WeeklyPlayer) => {
     setWeeklyPlayers(prev => {
@@ -2060,7 +2140,12 @@ const DEFAULT_LOADING_SCREEN: LoadingScreenSettings = {
       deleteWinnerAdmin,
       homepageBanners,
       saveHomepageBannerAdmin,
-      deleteHomepageBannerAdmin
+      deleteHomepageBannerAdmin,
+      storageFiles,
+      storageSettings,
+      saveStorageFileAdmin,
+      deleteStorageFileAdmin,
+      updateStorageSettingsAdmin
     }}>
       {children}
     </GameContext.Provider>
