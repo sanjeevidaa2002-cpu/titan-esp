@@ -305,19 +305,7 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ onSwitchTab }) => {
               <ChevronRight className="w-4 h-4 text-neutral-600" />
             </div>
 
-            {/* Admin Command Console */}
-            <div 
-              onClick={() => onSwitchTab('admin')}
-              className="p-4 flex items-center justify-between hover:bg-gold-500/5 transition-all cursor-pointer border-l border-transparent hover:border-gold-500"
-            >
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-gold-500/10 text-gold-400 flex items-center justify-center">
-                  <Shield className="w-4.5 h-4.5 text-gold-400" />
-                </div>
-                <span className="text-xs font-bold text-neutral-200">Admin Command Console</span>
-              </div>
-              <ChevronRight className="w-4 h-4 text-neutral-600" />
-            </div>
+
 
             {/* Log Out */}
             <div 

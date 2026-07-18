@@ -4,6 +4,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
+import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { GameProvider, useGame } from './context/GameContext';
 import { SplashScreen } from './components/SplashScreen';
 import { Auth } from './components/Auth';
@@ -79,8 +80,7 @@ function DashboardContent() {
     { id: 'leaderboard', label: 'Leaderboard', icon: Trophy, onClick: () => setActiveTab('leaderboard') },
     { id: 'referral', label: 'Referral', icon: Gift, onClick: () => setActiveTab('referral') },
     { id: 'support', label: 'Live', icon: HelpCircle, onClick: () => setActiveTab('support') },
-    { id: 'admin', label: 'Admin', icon: Shield, onClick: () => setActiveTab('admin') },
-    { id: 'logout', label: 'Logout', icon: LogOut, onClick: logout },
+        { id: 'logout', label: 'Logout', icon: LogOut, onClick: logout },
   ];
 
   // Active push toast alerts
@@ -199,18 +199,27 @@ function DashboardContent() {
     }
   };
 
+  const navigate = useNavigate();
+  useEffect(() => {
+    if (currentUser) {
+      const path = window.location.pathname;
+      if (path === '/login' || path === '/signup') {
+        navigate('/', { replace: true });
+      }
+    }
+  }, [currentUser, navigate]);
+
   if (showSplash) {
     return <SplashScreen onFinished={() => setShowSplash(false)} />;
   }
 
   // If no logged in user, show auth form
   if (!currentUser) {
-    return <Auth />;
+    const isSignup = window.location.pathname === '/signup';
+    return <Auth initialMode={isSignup ? 'signup' : 'login'} />;
   }
 
-  if (activeTab === 'admin') {
-    return <AdminDashboard onBack={() => setActiveTab('profile')} />;
-  }
+  
 
   return (
     <div className="min-h-screen bg-[#08080c] text-white flex flex-col md:flex-row font-sans selection:bg-gold-500 selection:text-neutral-950 relative overflow-x-hidden">
@@ -511,11 +520,21 @@ function DashboardContent() {
   );
 }
 
+
+
 export default function App() {
   return (
-    <GameProvider>
-      <DashboardContent />
-      <FloatingSupportWidget />
-    </GameProvider>
+    <BrowserRouter>
+      <GameProvider>
+        <Routes>
+          <Route path="/admin/*" element={<AdminDashboard onBack={() => {}} />} />
+          
+          <Route path="/login" element={<DashboardContent />} />
+          <Route path="/signup" element={<DashboardContent />} />
+          <Route path="/*" element={<DashboardContent />} />
+        </Routes>
+        <FloatingSupportWidget />
+      </GameProvider>
+    </BrowserRouter>
   );
 }

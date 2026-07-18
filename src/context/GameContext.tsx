@@ -43,7 +43,7 @@ import {
   LeaderboardEntry,
   RoomStatusType,
   PlayerRegistration,
-  BrandingSettings,
+  BrandingSettings, LoadingScreenSettings,
   SupportSettings,
   GameCategory,
   WeeklyPlayer,
@@ -109,6 +109,8 @@ interface GameContextProps {
   deleteCategoryAdmin: (id: string) => Promise<void>;
 
   brandingSettings: BrandingSettings;
+  loadingScreenSettings: LoadingScreenSettings;
+  updateLoadingScreenSettings: (updates: Partial<LoadingScreenSettings>) => Promise<void>;
   updateBrandingSettings: (updates: Partial<BrandingSettings>) => Promise<void>;
   supportSettings: SupportSettings;
   updateSupportSettings: (updates: Partial<SupportSettings>) => Promise<void>;
@@ -148,7 +150,21 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [useLocalFallback, setUseLocalFallback] = useState<boolean>(false);
   const [registrations, setRegistrations] = useState<PlayerRegistration[]>([]);
   const [registeringTournament, setRegisteringTournament] = useState<Tournament | null>(null);
+  
+const DEFAULT_LOADING_SCREEN: LoadingScreenSettings = {
+  loadingLogoUrl: '',
+  loadingLogoSource: 'url',
+  loadingTitle: 'TITAN ESPORTS',
+  loadingSubtitle: 'PREMIUM GAMING',
+  loadingText: 'INITIALIZING SYSTEM',
+  backgroundColor: '#08080c',
+  backgroundImage: '',
+  progressBarEnabled: true,
+  animationEnabled: true
+};
+
   const [brandingSettings, setBrandingSettings] = useState<BrandingSettings>(DEFAULT_BRANDING);
+  const [loadingScreenSettings, setLoadingScreenSettings] = useState<LoadingScreenSettings>(DEFAULT_LOADING_SCREEN);
   const [supportSettings, setSupportSettings] = useState<SupportSettings>(DEFAULT_SUPPORT_SETTINGS);
   const [categories, setCategories] = useState<GameCategory[]>(DEFAULT_CATEGORIES);
   const [weeklyPlayers, setWeeklyPlayers] = useState<WeeklyPlayer[]>([]);
@@ -420,6 +436,20 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       );
 
       // Realtime support settings listener
+      const unsubLoadingScreen = onSnapshot(doc(db, "settings", "loading_screen"),
+        (docSnap) => {
+          if (docSnap.exists()) {
+            setLoadingScreenSettings(docSnap.data() as LoadingScreenSettings);
+          } else {
+            setDoc(doc(db, "settings", "loading_screen"), DEFAULT_LOADING_SCREEN).catch(console.error);
+            setLoadingScreenSettings(DEFAULT_LOADING_SCREEN);
+          }
+        },
+        (err) => {
+          console.warn("Loading screen settings sync error:", err);
+        }
+      );
+
       const unsubSupport = onSnapshot(doc(db, 'support_settings', 'config'),
         (docSnap) => {
           if (docSnap.exists()) {
@@ -516,6 +546,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         unsubLeaderboard();
         unsubNotifications();
         unsubBranding();
+        unsubLoadingScreen();
         unsubSupport();
         unsubCategories();
         unsubWeeklyPlayers();
@@ -1809,6 +1840,17 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  
+  const updateLoadingScreenSettings = async (updates: Partial<LoadingScreenSettings>) => {
+    try {
+      const docRef = doc(db, 'settings', 'loading_screen');
+      await setDoc(docRef, { ...updates, updatedAt: Date.now() }, { merge: true });
+    } catch (err: any) {
+      console.error("Error updating loading screen settings:", err);
+      throw err;
+    }
+  };
+
   const updateBrandingSettings = async (updates: Partial<BrandingSettings>) => {
     setBrandingSettings(prev => ({ ...prev, ...updates }));
     if (!useLocalFallback) {
@@ -1981,6 +2023,8 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       deleteCategoryAdmin,
       brandingSettings,
       updateBrandingSettings,
+      loadingScreenSettings,
+      updateLoadingScreenSettings,
       supportSettings,
       updateSupportSettings,
       weeklyPlayers,

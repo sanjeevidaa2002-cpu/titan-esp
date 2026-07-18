@@ -16,54 +16,63 @@ interface SplashScreenProps {
 
 export const SplashScreen: React.FC<SplashScreenProps> = ({ onFinished }) => {
   const [progress, setProgress] = useState(0);
-  const { brandingSettings } = useGame();
+  const { loadingScreenSettings, brandingSettings } = useGame();
   const [cacheBuster] = useState(() => Date.now().toString());
 
+  
   const getCacheBustedUrl = (url: string) => {
     if (!url) return '';
     if (url.startsWith('data:')) return url;
-    
+        
     // Split to remove any existing v= from the stored database URL
     const baseUrl = url.split('?v=')[0].split('&v=')[0];
-    
+        
     // Use updatedAt if present, otherwise cacheBuster
-    const version = brandingSettings?.updatedAt || cacheBuster;
+    const version = loadingScreenSettings?.updatedAt || cacheBuster;
     return `${baseUrl}${baseUrl.includes('?') ? '&' : '?'}v=${version}`;
   };
 
-  // Helper values with defaults - prioritize explicit center and loading specific keys
-  const logo1 = brandingSettings?.loadingMainLogo;
-  const logo2 = brandingSettings?.loadingCenterLogo || brandingSettings?.loadingCenterLogoUrl || brandingSettings?.splashLogo || brandingSettings?.splashFallbackLogo;
-  const logo3 = brandingSettings?.loadingLogo;
-  const displayLogoUrl = logo2;
-  const bgImageUrl = brandingSettings?.loadingBackgroundImage || brandingSettings?.loadingBgImage || brandingSettings?.splashBgImage;
+  const displayLogoUrl = getCacheBustedUrl(loadingScreenSettings?.loadingLogoUrl || '');
+  const bgImageUrl = getCacheBustedUrl(loadingScreenSettings?.backgroundImage || '');
+  const bgColor = loadingScreenSettings?.backgroundColor || '#08080c';
+  
+  
+  
+  const showProgressBar = loadingScreenSettings?.progressBarEnabled !== false;
+  const showAnimation = loadingScreenSettings?.animationEnabled !== false;
+
+  const mainTitle = loadingScreenSettings?.loadingTitle || 'TITAN ESPORTS';
+  const secondaryTitle = loadingScreenSettings?.loadingSubtitle || 'PREMIUM GAMING';
+  const loadingText = loadingScreenSettings?.loadingText || 'INITIALIZING SYSTEM';
+
+
 
   // Derive mainTitle and secondaryTitle from loadingTitle if present
-  const mainTitle = brandingSettings?.splashMainTitle || brandingSettings?.loadingTitle || 'VICTORY';
-  const secondaryTitle = brandingSettings?.splashSecondaryTitle || 'ARENA';
+  
+  
   // titleWords logic removed
   // mainTitle declared above
   // secondaryTitle declared above
 
-  const subtitle = brandingSettings?.loadingSubtitle || brandingSettings?.splashSubtitle || 'PREPARE FOR BATTLE';
-  const loadingText = brandingSettings?.loadingLoadingText || brandingSettings?.loadingText || brandingSettings?.splashLoadingText || 'INITIALIZING SECURE CONNECTION...';
-  const loadingTextColor = brandingSettings?.splashLoadingTextColor || '#a3a3a3';
-  const minLoadingTime = brandingSettings?.splashMinLoadingTime ?? 1000;
-  const maxLoadingTime = brandingSettings?.splashMaxLoadingTime ?? 5000;
-  const loadingDuration = brandingSettings?.loadingDuration || brandingSettings?.splashLoadingDuration || 2500;
-  const redirectDelay = brandingSettings?.splashAutoRedirectTime ?? 800;
+  
+  
+  
+  
+  
+  
+  
 
   // Track progress bar updates
   useEffect(() => {
     // Generate a speed that matches the loadingDuration
-    const intervalTime = Math.max(20, loadingDuration / 100);
+    const intervalTime = Math.max(20, 2500 / 100);
     const timer = setInterval(() => {
       setProgress((prev) => {
         if (prev >= 100) {
           clearInterval(timer);
           setTimeout(() => {
             onFinished();
-          }, redirectDelay);
+          }, 800);
           return 100;
         }
         // Small random steps
@@ -73,7 +82,7 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ onFinished }) => {
     }, intervalTime);
     
     return () => clearInterval(timer);
-  }, [onFinished, loadingDuration, redirectDelay]);
+  }, [onFinished]);
 
   // Typing animation for loading text if configured
   const [typedText, setTypedText] = useState("");
@@ -215,13 +224,6 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ onFinished }) => {
           </div>
         )}
         
-        {/* Logo 1 - Top Position */}
-        {logo1 && (
-          <motion.div className="mb-6 h-16 flex items-center justify-center">
-            <img src={getCacheBustedUrl(logo1)} alt="Loading Logo 1" className="h-full object-contain drop-shadow-[0_0_15px_rgba(255,255,255,0.2)]" />
-          </motion.div>
-        )}
-        
         {/* Animated Orbits & Victory Logo Container */}
         <motion.div 
           className="relative w-36 h-36 mb-8 flex items-center justify-center"
@@ -280,16 +282,13 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ onFinished }) => {
             <span style={{ color: brandingSettings?.splashMainTitleColor || '#e5a919' }}>
               {mainTitle}
             </span>
-            <span style={{ color: brandingSettings?.splashSecondaryTitleColor || '#ffffff' }}>
-              {secondaryTitle}
-            </span>
           </div>
           
           <p 
             className="text-xs tracking-[0.25em] font-semibold uppercase mt-1"
             style={{ color: brandingSettings?.splashSubtitleColor || '#a855f7' }}
           >
-            {subtitle}
+            {secondaryTitle}
           </p>
         </motion.div>
 
@@ -330,15 +329,8 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ onFinished }) => {
           )}
         </div>
 
-        {/* Logo 3 - Bottom Position */}
-        {logo3 && (
-          <div className="mt-2 mb-6 h-12 flex items-center justify-center">
-            <img src={getCacheBustedUrl(logo3)} alt="Loading Logo 3" className="h-full object-contain drop-shadow-[0_0_10px_rgba(255,255,255,0.2)]" />
-          </div>
-        )}
-        
         {/* Loading progress bar */}
-        {brandingSettings?.splashShowProgressBar !== false && (
+        {showProgressBar !== false && (
           <div 
             className="w-full relative overflow-hidden mb-3 border border-white/5"
             style={{
@@ -364,7 +356,7 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ onFinished }) => {
           {brandingSettings?.splashShowLoadingText !== false && (
             <div className="flex items-center gap-1">
               <span className="w-1.5 h-1.5 rounded-full animate-ping" style={{ backgroundColor: brandingSettings?.splashProgressBarColor || '#e5a919' }} />
-              <span style={{ color: loadingTextColor }}>{typedText}</span>
+              <span style={{ color: '#a3a3a3' }}>{typedText}</span>
             </div>
           )}
           

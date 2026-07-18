@@ -432,3 +432,16 @@ export interface BonusHistory {
   status: 'completed' | 'pending' | 'failed';
   createdAt: string;
 }
+
+export interface LoadingScreenSettings {
+  loadingLogoUrl: string;
+  loadingLogoSource: 'upload' | 'url';
+  loadingTitle: string;
+  loadingSubtitle: string;
+  loadingText: string;
+  backgroundColor: string;
+  backgroundImage: string;
+  progressBarEnabled: boolean;
+  animationEnabled: boolean;
+  updatedAt?: number;
+}

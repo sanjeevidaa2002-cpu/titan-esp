@@ -1,50 +1,69 @@
 const fs = require('fs');
 let content = fs.readFileSync('src/App.tsx', 'utf8');
 
-// 1. Desktop hamburger button 1
+// Imports
 content = content.replace(
-/(\s*)(\{sidebarCollapsed \? \(\n\s*<div className="flex flex-col items-center p-4 border-b border-white\/5 gap-3\.5 shrink-0 w-full">\n(?:[\s\S]*?)<\/div>\n\s*\{.*?\}\n\s*<\/div>\n\s*){\/\* Hamburger Button below the Logo \*\/}\n\s*<button[\s\S]*?<Menu className="w-5 h-5" \/>\n\s*<\/button>/m,
-`$1$2{deviceType === 'desktop' && (
-$1  <button 
-$1    onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-$1    className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-gold-400 hover:text-white transition-all cursor-pointer flex items-center justify-center border border-white/5"
-$1    title="Expand Sidebar"
-$1  >
-$1    <Menu className="w-5 h-5" />
-$1  </button>
-$1)}`
+  /import \{ BrowserRouter, Routes, Route, Navigate, useLocation \} from 'react-router-dom';\n*/g,
+  ""
+);
+content = content.replace(
+  /import \{ GameProvider, useGame \} from '.\/context\/GameContext';/,
+  "import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';\nimport { GameProvider, useGame } from './context/GameContext';"
 );
 
-// 2. Desktop hamburger button 2
+// Remove Admin Tab
 content = content.replace(
-/(\s*)(\{brandingSettings\?\.websiteName \|\| 'TITAN ESPORTS'\}\n\s*<\/span>\n\s*){\/\* Hamburger Button below the Name \*\/}\n\s*<button[\s\S]*?<Menu className="w-5 h-5" \/>\n\s*<\/button>/m,
-`$1$2{deviceType === 'desktop' && (
-$1  <button 
-$1    onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-$1    className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-gold-400 hover:text-white transition-all cursor-pointer flex items-center justify-center border border-white/5 mt-1"
-$1    title="Collapse Sidebar"
-$1  >
-$1    <Menu className="w-5 h-5" />
-$1  </button>
-$1)}`
+  /\{ id: 'admin', label: 'Admin', icon: Shield, onClick: \(\) => setActiveTab\('admin'\) \},\n/g,
+  ""
 );
 
-// 3. Remove Mobile Drawer button
+// Remove activeTab === 'admin' render block
 content = content.replace(
-/\s*{\/\* Action icons right \*\/}\n\s*<div className="flex items-center gap-2">\n\s*{\/\* Hamburger \/ Menu toggle button \*\/}\n\s*<button\s*onClick=\{\(\) => setShowMobileDrawer\(true\)\}[\s\S]*?<\/button>\n\s*<\/div>/m,
-``
+  /if \(activeTab === 'admin'\) \{\n\s*return <AdminDashboard onBack=\{\(\) => setActiveTab\('profile'\)\} \/>;\n\s*\}/g,
+  ""
 );
 
-// 4. Remove Mobile Drawer Overlay entirely
-content = content.replace(
-/\s*{\/\* --- MOBILE DRAWER \/ SIDE SHEET OVERLAY --- \*\/}\n\s*<AnimatePresence>\n\s*\{showMobileDrawer && \([\s\S]*?<\/AnimatePresence>/m,
-``
-);
+// Create Admin App components
+const adminComponents = `
+function AdminAuthGuard({ children }: { children: React.ReactNode }) {
+  const { currentUser, userProfile, loading } = useGame();
+  
+  if (loading) return null;
+  if (!currentUser) return <Navigate to="/admin/login" replace />;
+  if (userProfile?.role !== 'admin') return <Navigate to="/admin/login" replace />;
+  
+  return <>{children}</>;
+}
 
-// 5. Remove state
-content = content.replace(
-/  const \[showMobileDrawer, setShowMobileDrawer\] = useState\(false\);\n/,
-''
-);
+function AdminApp() {
+  return (
+    <AdminAuthGuard>
+      <AdminDashboard onBack={() => {}} />
+    </AdminAuthGuard>
+  );
+}
+`;
+
+content = content.replace(/export default function App\(\) \{/, adminComponents + '\nexport default function App() {');
+
+// Wrap with router
+const newAppRender = `export default function App() {
+  return (
+    <BrowserRouter>
+      <GameProvider>
+        <Routes>
+          <Route path="/admin/login" element={<Auth initialMode="login" adminMode={true} />} />
+          <Route path="/admin/*" element={<AdminApp />} />
+          <Route path="/login" element={<DashboardContent />} />
+          <Route path="/signup" element={<DashboardContent />} />
+          <Route path="/*" element={<DashboardContent />} />
+        </Routes>
+        <FloatingSupportWidget />
+      </GameProvider>
+    </BrowserRouter>
+  );
+}`;
+
+content = content.replace(/export default function App\(\) \{[\s\S]*?\}\n/, newAppRender + '\n');
 
 fs.writeFileSync('src/App.tsx', content);
