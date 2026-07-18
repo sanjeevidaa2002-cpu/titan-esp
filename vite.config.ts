@@ -15,5 +15,17 @@ export default defineConfig(() => {
       hmr: process.env.DISABLE_HMR !== 'true' ? { overlay: false } : false,
       watch: process.env.DISABLE_HMR === 'true' ? null : {},
     },
+    build: {
+      chunkSizeWarningLimit: 2000,
+      rollupOptions: {
+        output: {
+          manualChunks(id) {
+            if (id.includes('node_modules')) {
+              return 'vendor';
+            }
+          }
+        }
+      }
+    }
   };
 });
