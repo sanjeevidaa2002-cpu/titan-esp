@@ -42,7 +42,7 @@ const db = initializeFirestore(app, {
 const storage = getStorage(app);
 
 // Silence internal SDK logs to maintain clean logs and handle connectivity fallback beautifully
-setLogLevel('error');
+setLogLevel('silent');
 
 const auth = getAuth(app);
 // Ensure auth persistence is set to local

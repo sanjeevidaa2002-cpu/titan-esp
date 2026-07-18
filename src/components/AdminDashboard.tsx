@@ -138,6 +138,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
   const [searchUserQuery, setSearchUserQuery] = useState('');
   const [localNotificationsEnabled, setLocalNotificationsEnabled] = useState<boolean | null>(null);
   const [isSavingNotifications, setIsSavingNotifications] = useState(false);
+  const [localPromoCodesEnabled, setLocalPromoCodesEnabled] = useState<boolean | null>(null);
+  const [isSavingPromoCodes, setIsSavingPromoCodes] = useState(false);
   const [showStoragePicker, setShowStoragePicker] = useState(false);
   
   // Audit Logs
@@ -3448,24 +3450,47 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
                     Gamer Promo Discount Codes
                   </h3>
                   
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (updatePromoSettingsAdmin) {
-                        updatePromoSettingsAdmin({ 
-                          promoCodesEnabled: !promoSettings?.promoCodesEnabled 
-                        });
-                        triggerNotification("Settings Updated", `Promo Codes have been ${!promoSettings?.promoCodesEnabled ? 'enabled' : 'disabled'}.`, "info");
-                      }
-                    }}
-                    className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer ${
-                      promoSettings?.promoCodesEnabled !== false
-                        ? 'bg-purple-600 hover:bg-purple-500 text-white shadow-[0_0_10px_rgba(168,85,247,0.3)]' 
-                        : 'bg-neutral-800 hover:bg-neutral-700 text-neutral-400'
-                    }`}
-                  >
-                    {promoSettings?.promoCodesEnabled !== false ? '🔔 ON' : '🔕 OFF'}
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const currentState = localPromoCodesEnabled !== null ? localPromoCodesEnabled : (promoSettings?.promoCodesEnabled !== false);
+                        setLocalPromoCodesEnabled(!currentState);
+                      }}
+                      className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer ${
+                        (localPromoCodesEnabled !== null ? localPromoCodesEnabled : (promoSettings?.promoCodesEnabled !== false))
+                          ? 'bg-purple-600 hover:bg-purple-500 text-white shadow-[0_0_10px_rgba(168,85,247,0.3)]' 
+                          : 'bg-neutral-800 hover:bg-neutral-700 text-neutral-400'
+                      }`}
+                    >
+                      {(localPromoCodesEnabled !== null ? localPromoCodesEnabled : (promoSettings?.promoCodesEnabled !== false)) ? '🔔 ON' : '🔕 OFF'}
+                    </button>
+                    
+                    <button
+                      type="button"
+                      disabled={isSavingPromoCodes || localPromoCodesEnabled === null || localPromoCodesEnabled === (promoSettings?.promoCodesEnabled !== false)}
+                      onClick={async () => {
+                        if (localPromoCodesEnabled === null || updatePromoSettingsAdmin == null) return;
+                        setIsSavingPromoCodes(true);
+                        try {
+                          await updatePromoSettingsAdmin({ promoCodesEnabled: localPromoCodesEnabled });
+                          triggerNotification("Settings Saved", `Promo Codes have been ${localPromoCodesEnabled ? 'enabled' : 'disabled'}.`, "success");
+                        } catch (err) {
+                          console.error(err);
+                        } finally {
+                          setIsSavingPromoCodes(false);
+                          setLocalPromoCodesEnabled(null);
+                        }
+                      }}
+                      className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer ${
+                        localPromoCodesEnabled !== null && localPromoCodesEnabled !== (promoSettings?.promoCodesEnabled !== false) && !isSavingPromoCodes
+                          ? 'bg-gold-500 hover:bg-gold-400 text-neutral-900 shadow-[0_0_10px_rgba(250,204,21,0.2)]'
+                          : 'bg-white/5 text-neutral-500 opacity-50 cursor-not-allowed'
+                      }`}
+                    >
+                      {isSavingPromoCodes ? 'Saving...' : 'Save Settings'}
+                    </button>
+                  </div>
                 </div>
 
                 {/* Create Promo Code form */}
