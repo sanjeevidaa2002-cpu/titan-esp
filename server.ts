@@ -43,13 +43,13 @@ let localYouTubeConfig: any = {
 };
 
 let localAppSettings: any = {
-  appName: 'Victory Arena',
+  appName: 'TITAN ESP',
   version: '1.4.2',
-  downloadLink: 'https://victoryarena.esports/download',
+  downloadLink: 'https://titanesp.esports/download',
   logoUrl: 'https://images.unsplash.com/photo-1612287230202-1bf1d85d1bdf?auto=format&fit=crop&q=80&w=150',
   themeColor: 'amber',
   maintenanceMode: false,
-  upiId: 'victoryarena@ybl',
+  upiId: 'titanesp@ybl',
   qrCodeUrl: 'https://images.unsplash.com/photo-1595079676339-1534801ad6cf?auto=format&fit=crop&q=80&w=250',
   manualPaymentEnabled: true,
   paymentInstructions: '1. Scan the QR code or enter UPI ID.\n2. Enter the amount to transfer.\n3. Note down the 12-Digit Ref / UTR number from receipt.\n4. Submit it here to verify.',
@@ -691,8 +691,8 @@ async function startServer() {
             zap_key: apiKey,
             order_id: orderId,
             amount: String(amount),
-            customer_name: userEmail ? userEmail.split("@")[0] : "victory_arena_player",
-            customer_email: userEmail || "player@victoryarena.com",
+            customer_name: userEmail ? userEmail.split("@")[0] : "titan_esp_player",
+            customer_email: userEmail || "player@titanesp.com",
             customer_mobile: "9999999999",
             redirect_url: redirectUrl,
             webhook_url: webhookUrl
@@ -849,7 +849,7 @@ async function startServer() {
           <div class="bg-neutral-900/60 border border-white/5 rounded-2xl p-4 text-xs space-y-2.5 font-mono">
             <div class="flex justify-between">
               <span class="text-neutral-500">Merchant Name:</span>
-              <span class="text-neutral-200 font-bold">Victory Arena Top-Up</span>
+              <span class="text-neutral-200 font-bold">TITAN ESP Top-Up</span>
             </div>
             <div class="flex justify-between">
               <span class="text-neutral-500">Order Reference:</span>

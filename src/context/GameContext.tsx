@@ -160,7 +160,10 @@ const DEFAULT_LOADING_SCREEN: LoadingScreenSettings = {
   backgroundColor: '#08080c',
   backgroundImage: '',
   progressBarEnabled: true,
-  animationEnabled: true
+  animationEnabled: true,
+  uploadedLogoUrl: '',
+  directLogoUrl: '',
+  loadingLogoType: 'default'
 };
 
   const [brandingSettings, setBrandingSettings] = useState<BrandingSettings>(DEFAULT_BRANDING);
@@ -199,7 +202,7 @@ const DEFAULT_LOADING_SCREEN: LoadingScreenSettings = {
         }
       }
 
-      // Seed detailed registrations for Victory Arena Grand Cup - Bermuda Squad if missing
+      // Seed detailed registrations for TITAN ESP Grand Cup - Bermuda Squad if missing
       const testRegRef = doc(db, 'registrations', 'REG-882930');
       const testRegSnap = await getDoc(testRegRef);
       if (!testRegSnap.exists()) {
@@ -211,7 +214,7 @@ const DEFAULT_LOADING_SCREEN: LoadingScreenSettings = {
             userId: 'u_sim_1',
             userEmail: 'viper_ff@arena.com',
             tournamentId: 't_upcoming_1',
-            tournamentName: 'Victory Arena Grand Cup - Bermuda Squad',
+            tournamentName: 'TITAN ESP Grand Cup - Bermuda Squad',
             matchType: 'Squad',
             entryFee: 20,
             prizePool: 1000,
@@ -234,7 +237,7 @@ const DEFAULT_LOADING_SCREEN: LoadingScreenSettings = {
             userId: 'u_sim_5',
             userEmail: 'killer_ff@arena.com',
             tournamentId: 't_upcoming_1',
-            tournamentName: 'Victory Arena Grand Cup - Bermuda Squad',
+            tournamentName: 'TITAN ESP Grand Cup - Bermuda Squad',
             matchType: 'Squad',
             entryFee: 20,
             prizePool: 1000,
@@ -257,7 +260,7 @@ const DEFAULT_LOADING_SCREEN: LoadingScreenSettings = {
             userId: 'u_sim_9',
             userEmail: 'titan_gaming@arena.com',
             tournamentId: 't_upcoming_1',
-            tournamentName: 'Victory Arena Grand Cup - Bermuda Squad',
+            tournamentName: 'TITAN ESP Grand Cup - Bermuda Squad',
             matchType: 'Squad',
             entryFee: 20,
             prizePool: 1000,
@@ -280,7 +283,7 @@ const DEFAULT_LOADING_SCREEN: LoadingScreenSettings = {
             userId: 'u_sim_13',
             userEmail: 'shadow_gamer@arena.com',
             tournamentId: 't_upcoming_1',
-            tournamentName: 'Victory Arena Grand Cup - Bermuda Squad',
+            tournamentName: 'TITAN ESP Grand Cup - Bermuda Squad',
             matchType: 'Squad',
             entryFee: 20,
             prizePool: 1000,
@@ -436,13 +439,25 @@ const DEFAULT_LOADING_SCREEN: LoadingScreenSettings = {
       );
 
       // Realtime support settings listener
-      const unsubLoadingScreen = onSnapshot(doc(db, "settings", "loading_screen"),
+      const unsubLoadingScreen = onSnapshot(doc(db, "loading_settings", "config"),
         (docSnap) => {
           if (docSnap.exists()) {
             setLoadingScreenSettings(docSnap.data() as LoadingScreenSettings);
           } else {
-            setDoc(doc(db, "settings", "loading_screen"), DEFAULT_LOADING_SCREEN).catch(console.error);
-            setLoadingScreenSettings(DEFAULT_LOADING_SCREEN);
+            // Try to read from settings/loading_screen if loading_settings config doesn't exist yet
+            getDoc(doc(db, "settings", "loading_screen")).then((legacySnap) => {
+              if (legacySnap.exists()) {
+                const legacyData = legacySnap.data() as LoadingScreenSettings;
+                setDoc(doc(db, "loading_settings", "config"), { ...legacyData, updatedAt: Date.now() }).catch(console.error);
+                setLoadingScreenSettings(legacyData);
+              } else {
+                setDoc(doc(db, "loading_settings", "config"), DEFAULT_LOADING_SCREEN).catch(console.error);
+                setLoadingScreenSettings(DEFAULT_LOADING_SCREEN);
+              }
+            }).catch(() => {
+              setDoc(doc(db, "loading_settings", "config"), DEFAULT_LOADING_SCREEN).catch(console.error);
+              setLoadingScreenSettings(DEFAULT_LOADING_SCREEN);
+            });
           }
         },
         (err) => {
@@ -595,13 +610,17 @@ const DEFAULT_LOADING_SCREEN: LoadingScreenSettings = {
               const initialProfile = {
                 uid: user.uid,
                 userId: user.uid,
+                username: user.displayName || 'Gamer_' + Math.random().toString(36).substring(2, 6),
                 email: user.email || '',
                 nickname: user.displayName || 'Gamer_' + Math.random().toString(36).substring(2, 6),
                 displayName: user.displayName || 'Gamer',
                 photoURL: user.photoURL || '',
+                profilePhoto: user.photoURL || '',
+                phoneNumber: user.phoneNumber || '',
                 mobileNumber: '',
                 referralCode: uniqueReferral,
                 walletBalance: 0,
+                provider: 'Google',
                 accountStatus: 'Active',
                 createdAt: new Date().toISOString(),
                 joinedAt: new Date().toISOString(), // For backwards compatibility
@@ -640,7 +659,7 @@ const DEFAULT_LOADING_SCREEN: LoadingScreenSettings = {
               
               // Push signup welcome notification
               await triggerNotification(
-                "Welcome to Victory Arena! 🎁",
+                "Welcome to TITAN ESP! 🎁",
                 "Your account is created successfully via Google Sign-In. Add Free Fire UID and enter battles!",
                 "info"
               );
@@ -978,10 +997,10 @@ const DEFAULT_LOADING_SCREEN: LoadingScreenSettings = {
       }
 
       // Generate hidden email format (saved in DB for backwards compatibility)
-      const hiddenEmail = `${username.toLowerCase().replace(/[^a-z0-9]/g, '')}_${Date.now()}@victoryarena.app`;
+      const hiddenEmail = `${username.toLowerCase().replace(/[^a-z0-9]/g, '')}_${Date.now()}@titanesp.app`;
       const uid = `usr_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
 
-      const uniqueReferral = 'VA-' + Math.random().toString(36).substring(2, 6).toUpperCase();
+      const uniqueReferral = 'TE-' + Math.random().toString(36).substring(2, 6).toUpperCase();
       const passwordHash = await hashPassword(pass);
       const depBal = referralCode ? 35 : 20;
       const bonBal = referralCode ? 15 : 10;
@@ -1843,8 +1862,12 @@ const DEFAULT_LOADING_SCREEN: LoadingScreenSettings = {
   
   const updateLoadingScreenSettings = async (updates: Partial<LoadingScreenSettings>) => {
     try {
-      const docRef = doc(db, 'settings', 'loading_screen');
-      await setDoc(docRef, { ...updates, updatedAt: Date.now() }, { merge: true });
+      const timestamp = Date.now();
+      const mergedUpdates = { ...updates, updatedAt: timestamp };
+      
+      // Concurrently update both documents for 100% database compatibility
+      await setDoc(doc(db, 'settings', 'loading_screen'), mergedUpdates, { merge: true });
+      await setDoc(doc(db, 'loading_settings', 'config'), mergedUpdates, { merge: true });
     } catch (err: any) {
       console.error("Error updating loading screen settings:", err);
       throw err;

@@ -29,7 +29,7 @@ const oldBlock = `                    {/* A. Paytm Gateway Block */}
                             type="text"
                             value={appSettings.paytmMID}
                             onChange={e => setAppSettings({...appSettings, paytmMID: e.target.value})}
-                            placeholder="e.g. VictoryAr94817..."
+                            placeholder="e.g. TitanEs94817..."
                             className="w-full bg-neutral-950 border border-white/10 rounded-lg p-2 text-white"
                           />
                         </div>
@@ -66,7 +66,7 @@ const newBlock = `                    {/* A. Paytm Gateway Block */}
                             type="text"
                             value={appSettings.paytmMid || ''}
                             onChange={e => setAppSettings({...appSettings, paytmMid: e.target.value})}
-                            placeholder="e.g. VictoryAr94817..."
+                            placeholder="e.g. TitanEs94817..."
                             className="w-full bg-neutral-950 border border-white/10 rounded-lg p-2 text-white"
                           />
                         </div>

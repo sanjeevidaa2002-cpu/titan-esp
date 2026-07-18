@@ -20,7 +20,7 @@ const targetContent = `                  <div>
                         }));
                       }}
                       className="w-full bg-[#0a0a0f] border border-white/10 rounded-xl px-3 py-2.5 text-xs text-white focus:border-gold-500 outline-none transition-all font-semibold"
-                      placeholder="e.g. VICTORY ARENA"
+                      placeholder="e.g. TITAN ESP"
                     />
                   </div>`;
 
@@ -37,7 +37,7 @@ const newContent = `                  <div>
                         }));
                       }}
                       className="w-full bg-[#0a0a0f] border border-white/10 rounded-xl px-3 py-2.5 text-xs text-white focus:border-gold-500 outline-none transition-all font-semibold"
-                      placeholder="e.g. VICTORY"
+                      placeholder="e.g. TITAN"
                     />
                   </div>
                   <div>
@@ -52,7 +52,7 @@ const newContent = `                  <div>
                         }));
                       }}
                       className="w-full bg-[#0a0a0f] border border-white/10 rounded-xl px-3 py-2.5 text-xs text-white focus:border-gold-500 outline-none transition-all font-semibold"
-                      placeholder="e.g. ARENA"
+                      placeholder="e.g. ESP"
                     />
                   </div>`;
 
@@ -60,8 +60,8 @@ content = content.replace(targetContent, newContent);
 
 // Remove the sync logic from handleSave for Text
 const textSyncTarget = `      // Synchronize text and color keys for complete Loading Page Configuration compliance
-      const defaultTitle = \`\${processedSettings.splashMainTitle || 'VICTORY'} \${processedSettings.splashSecondaryTitle || 'ARENA'}\`.trim();
-      processedSettings.loadingTitle = processedSettings.loadingTitle || defaultTitle || 'VICTORY ARENA';`;
+      const defaultTitle = \`\${processedSettings.splashMainTitle || 'TITAN'} \${processedSettings.splashSecondaryTitle || 'ESP'}\`.trim();
+      processedSettings.loadingTitle = processedSettings.loadingTitle || defaultTitle || 'TITAN ESP';`;
 
 const textSyncReplacement = `      // Synchronize text and color keys for complete Loading Page Configuration compliance
       processedSettings.loadingTitle = processedSettings.splashMainTitle || processedSettings.loadingTitle || 'VICTORY';`;

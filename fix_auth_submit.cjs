@@ -19,7 +19,7 @@ const oldSubmit = `  const handleSubmit = async (e: React.FormEvent) => {
       const errorMessage = err?.message || '';
 
       if (errorCode === 'auth/email-already-in-use' || errorMessage.includes('email-already-in-use')) {
-        setLocalErr("This email address is already registered on Victory Arena! Please switch to the 'Sign In' tab above to access your account.");
+        setLocalErr("This email address is already registered on TITAN ESP! Please switch to the 'Sign In' tab above to access your account.");
         setLoading(false);
         return;
       } else if (errorCode === 'auth/invalid-email' || errorMessage.includes('invalid-email')) {

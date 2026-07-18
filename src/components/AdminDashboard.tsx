@@ -130,8 +130,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
   
   // Audit Logs
   const [auditLogs, setAuditLogs] = useState<{ id: string; action: string; timestamp: string; admin: string }[]>([
-    { id: '1', action: 'Admin logged in', timestamp: new Date(Date.now() - 600000).toISOString(), admin: 'admin@victoryarena.com' },
-    { id: '2', action: 'Created custom match', timestamp: new Date(Date.now() - 1200000).toISOString(), admin: 'admin@victoryarena.com' },
+    { id: '1', action: 'Admin logged in', timestamp: new Date(Date.now() - 600000).toISOString(), admin: 'admin@titanesp.com' },
+    { id: '2', action: 'Created custom match', timestamp: new Date(Date.now() - 1200000).toISOString(), admin: 'admin@titanesp.com' },
   ]);
 
   // Selected tournament for player management
@@ -403,13 +403,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
 
   // Promo Code States
   const [promoCodes, setPromoCodes] = useState<{ code: string; bonus: number; limit: number; expiry: string }[]>([
-    { code: 'VICTORY50', bonus: 50, limit: 100, expiry: '2026-08-31' },
+    { code: 'TITAN50', bonus: 50, limit: 100, expiry: '2026-08-31' },
     { code: 'FREEFIRE', bonus: 20, limit: 500, expiry: '2026-12-31' }
   ]);
   const [newPromo, setNewPromo] = useState({ code: '', bonus: 10, limit: 50, expiry: '' });
 
   // Announcement States
-  const [scrollingNotice, setScrollingNotice] = useState('Welcome to Victory Arena Free Fire League! New matches starting every hour. Join now and claim your ₹20 signup bonus!');
+  const [scrollingNotice, setScrollingNotice] = useState('Welcome to TITAN ESP Free Fire League! New matches starting every hour. Join now and claim your ₹20 signup bonus!');
   const [popupAnnouncement, setPopupAnnouncement] = useState({
     active: true,
     title: 'OFFICIAL ESORTS LEAGUE SEASON 4 🏆',
@@ -424,13 +424,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
 
   // App Settings States
   const [appSettings, setAppSettings] = useState({
-    appName: 'Victory Arena',
+    appName: 'TITAN ESP',
     version: '1.4.2',
-    downloadLink: 'https://victoryarena.esports/download',
+    downloadLink: 'https://titanesp.esports/download',
     logoUrl: 'https://images.unsplash.com/photo-1612287230202-1bf1d85d1bdf?auto=format&fit=crop&q=80&w=150',
     themeColor: 'amber',
     maintenanceMode: false,
-    upiId: 'victoryarena@ybl',
+    upiId: 'titanesp@ybl',
     qrCodeUrl: 'https://images.unsplash.com/photo-1595079676339-1534801ad6cf?auto=format&fit=crop&q=80&w=250',
     razorpayKey: 'rzp_live_A8xH2kld9s17z',
     phonepeMerchant: 'PHONEPE_VA_MERCHANT',
@@ -472,7 +472,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
     const fetchSettings = async () => {
       // First, try loading from local storage as a fast preview/offline fallback
       try {
-        const localData = localStorage.getItem('victory_arena_app_settings');
+        const localData = localStorage.getItem('titan_esp_app_settings');
         if (localData) {
           const parsed = JSON.parse(localData);
           setAppSettings(prev => ({ ...prev, ...parsed }));
@@ -567,7 +567,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
       }
 
       // Sync back to localStorage
-      localStorage.setItem('victory_arena_app_settings', JSON.stringify(updatedData));
+      localStorage.setItem('titan_esp_app_settings', JSON.stringify(updatedData));
 
       triggerNotification('Settings Saved', 'UPI & Automated Payment Gateway settings saved successfully to Firestore & Backend 🚀', 'system');
       addAuditLog('Updated payment gateways and UPI configurations');
@@ -575,7 +575,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
       console.warn("Error saving app settings:", err);
       // Fallback: save to localStorage
       try {
-        localStorage.setItem('victory_arena_app_settings', JSON.stringify(appSettings));
+        localStorage.setItem('titan_esp_app_settings', JSON.stringify(appSettings));
         triggerNotification('Settings Saved Locally', 'Saved settings to local storage successfully (offline) 📦', 'system');
       } catch (localErr) {
         triggerNotification('Error', 'Failed to save settings: ' + err.message, 'alert');
@@ -768,7 +768,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
       id: Math.random().toString(36).substring(2, 9),
       action,
       timestamp: new Date().toISOString(),
-      admin: userProfile?.email || 'admin@victoryarena.com'
+      admin: userProfile?.email || 'admin@titanesp.com'
     };
     setAuditLogs(prev => [newLog, ...prev]);
   };
@@ -1204,7 +1204,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
       const res = await fetch('/api/admin/payments/complete', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ transactionId: txn.id, admin: userProfile?.email || 'admin@victoryarena.com' })
+        body: JSON.stringify({ transactionId: txn.id, admin: userProfile?.email || 'admin@titanesp.com' })
       });
       const data = await res.json();
       if (res.ok) {
@@ -1228,7 +1228,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
         const res = await fetch('/api/admin/payments/cancel', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ transactionId: txn.id, reason, admin: userProfile?.email || 'admin@victoryarena.com' })
+          body: JSON.stringify({ transactionId: txn.id, reason, admin: userProfile?.email || 'admin@titanesp.com' })
         });
         const data = await res.json();
         if (res.ok) {
@@ -1366,7 +1366,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `victory_arena_${reportType}_report.csv`);
+    link.setAttribute("download", `titan_esp_${reportType}_report.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -1386,7 +1386,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
     const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(backupData, null, 2));
     const downloadAnchor = document.createElement('a');
     downloadAnchor.setAttribute("href", dataStr);
-    downloadAnchor.setAttribute("download", "victory_arena_db_backup.json");
+    downloadAnchor.setAttribute("download", "titan_esp_db_backup.json");
     document.body.appendChild(downloadAnchor);
     downloadAnchor.click();
     downloadAnchor.removeChild(downloadAnchor);
@@ -1424,12 +1424,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
     const cleanPassword = adminPassword;
 
     if (
-      (cleanUsername === 'admin' || cleanUsername === 'admin@victoryarena.com') &&
-      (cleanPassword === 'admin' || cleanPassword === 'admin123' || cleanPassword === 'VictoryAdmin2026')
+      (cleanUsername === 'admin' || cleanUsername === 'admin@titanesp.com') &&
+      (cleanPassword === 'admin' || cleanPassword === 'admin123' || cleanPassword === 'TitanAdmin2026')
     ) {
       setIsAdminLoggedIn(true);
       setLoginError('');
-      triggerNotification("Admin Login Successful 🔐", "Authorized access granted to Victory Arena control panel.", "system");
+      triggerNotification("Admin Login Successful 🔐", "Authorized access granted to TITAN ESP control panel.", "system");
     } else {
       setLoginError("Access Denied: Invalid Administrative Credentials.");
     }
@@ -1450,7 +1450,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
                 <Lock className="w-6 h-6 text-gold-400" />
               </div>
               <h2 className="text-xl font-black tracking-widest text-white uppercase">Secured Command Gate</h2>
-              <p className="text-[10px] text-neutral-400 font-mono mt-1.5 uppercase tracking-wider">Victory Arena Management Terminal</p>
+              <p className="text-[10px] text-neutral-400 font-mono mt-1.5 uppercase tracking-wider">TITAN ESP Management Terminal</p>
             </div>
 
             {loginError && (
@@ -1949,7 +1949,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
               <div>
                 <h2 className="text-xl font-black text-white uppercase tracking-wider">Interactive Command Deck</h2>
-                <p className="text-xs text-neutral-400">Real-time telemetry and commercial analytics for Victory Arena tournaments.</p>
+                <p className="text-xs text-neutral-400">Real-time telemetry and commercial analytics for TITAN ESP tournaments.</p>
               </div>
               
               {/* Quick actions row */}
@@ -3689,7 +3689,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
                             type="text"
                             value={appSettings.paytmMid || ''}
                             onChange={e => setAppSettings({...appSettings, paytmMid: e.target.value})}
-                            placeholder="e.g. VictoryAr94817..."
+                            placeholder="e.g. TitanEs94817..."
                             className="w-full bg-neutral-950 border border-white/10 rounded-lg p-2 text-white"
                           />
                         </div>

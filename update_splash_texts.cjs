@@ -18,9 +18,9 @@ content = content.replace(
 // Right now it says `const fullTitle = brandingSettings?.loadingTitle || ...`
 // Let's modify it to be exactly what Admin Panel sets.
 content = content.replace(
-  "const fullTitle = brandingSettings?.loadingTitle || `${brandingSettings?.splashMainTitle || 'VICTORY'} ${brandingSettings?.splashSecondaryTitle || 'ARENA'}`;",
-  `const mainTitle = brandingSettings?.splashMainTitle || brandingSettings?.loadingTitle || 'VICTORY';
-  const secondaryTitle = brandingSettings?.splashSecondaryTitle || 'ARENA';`
+  "const fullTitle = brandingSettings?.loadingTitle || `${brandingSettings?.splashMainTitle || 'TITAN'} ${brandingSettings?.splashSecondaryTitle || 'ESP'}`;",
+  `const mainTitle = brandingSettings?.splashMainTitle || brandingSettings?.loadingTitle || 'TITAN';
+  const secondaryTitle = brandingSettings?.splashSecondaryTitle || 'ESP';`
 );
 
 content = content.replace(
@@ -28,7 +28,7 @@ content = content.replace(
   `// titleWords logic removed`
 );
 content = content.replace(
-  "const mainTitle = titleWords[0] || 'VICTORY';",
+  "const mainTitle = titleWords[0] || 'TITAN';",
   `// mainTitle declared above`
 );
 content = content.replace(

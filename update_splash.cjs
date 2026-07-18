@@ -12,7 +12,7 @@ content = content.replace(
 
 // Add Logo 1 above Animated Orbits
 content = content.replace(
-  "{/* Animated Orbits & Victory Logo Container */}",
+  "{/* Animated Orbits & Titan Logo Container */}",
   `{/* Logo 1 - Top Position */}
         {logo1 && (
           <motion.div className="mb-6 h-16 flex items-center justify-center">
@@ -20,7 +20,7 @@ content = content.replace(
           </motion.div>
         )}
         
-        {/* Animated Orbits & Victory Logo Container */}`
+        {/* Animated Orbits & Titan Logo Container */}`
 );
 
 // Add Logo 3 above Progress Bar

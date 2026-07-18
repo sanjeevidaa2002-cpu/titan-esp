@@ -158,12 +158,12 @@ const registerNew = `  const registerWithCredentials = async (
       }
 
       // Generate hidden email for Firebase Auth
-      const hiddenEmail = \`\${username.toLowerCase().replace(/[^a-z0-9]/g, '')}_\${Date.now()}@victoryarena.app\`;
+      const hiddenEmail = \`\${username.toLowerCase().replace(/[^a-z0-9]/g, '')}_\${Date.now()}@titanesp.app\`;
 
       const cred = await createUserWithEmailAndPassword(auth, hiddenEmail, pass);
       const user = cred.user;
 
-      const uniqueReferral = 'VA-' + Math.random().toString(36).substring(2, 6).toUpperCase();
+      const uniqueReferral = 'TE-' + Math.random().toString(36).substring(2, 6).toUpperCase();
       
       const initialProfile: UserProfile = {
         uid: user.uid,

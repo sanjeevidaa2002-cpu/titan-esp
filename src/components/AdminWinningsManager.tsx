@@ -719,7 +719,7 @@ export const AdminWinningsManager: React.FC = () => {
                     required
                     value={formTournament}
                     onChange={(e) => setFormTournament(e.target.value)}
-                    placeholder="e.g. Victory Arena Grand Cup - Bermuda Squad"
+                    placeholder="e.g. TITAN ESP Grand Cup - Bermuda Squad"
                     className="w-full bg-[#12121a] border border-white/10 rounded-xl py-2 px-3 text-xs font-sans text-white placeholder:text-neutral-600 focus:outline-none focus:border-gold-500"
                   />
                 </div>

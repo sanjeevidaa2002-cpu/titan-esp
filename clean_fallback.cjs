@@ -11,7 +11,7 @@ const oldFallback = `      } else if (errorMessage) {
       setLocalErr(err.message || "Failed to authenticate. Triggered Demo Login Session instead.");
       try {
         // Just register with local fallback
-        await registerWithEmail(email || 'demo@victory.com', 'demo123', nickname || 'Lkehw', freefireUid || '55827391', refCode);
+        await registerWithEmail(email || 'demo@titanesp.com', 'demo123', nickname || 'Lkehw', freefireUid || '55827391', refCode);
       } catch (inner) {
         // Fallback already handled
       }

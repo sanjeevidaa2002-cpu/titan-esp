@@ -106,7 +106,7 @@ export const ReferralSystem: React.FC<ReferralSystemProps> = ({ onBack }) => {
           <div className="space-y-3">
             {[
               { step: '1', title: 'Share Your Referral Code', desc: 'Copy your unique invite code above and send it to your WhatsApp or Telegram groups.' },
-              { step: '2', title: 'Friend Registers', desc: 'Your friend registers on Victory Arena and inputs your code in the Referral Code field.' },
+              { step: '2', title: 'Friend Registers', desc: 'Your friend registers on TITAN ESP and inputs your code in the Referral Code field.' },
               { step: '3', title: 'Collect Cash Payout', desc: 'Your friend receives ₹15 deposit cash instantly. You receive ₹15 deposit cash + ₹10 promo coins!' }
             ].map((item) => (
               <div key={item.step} className="bg-[#111116]/80 border border-white/5 p-4 rounded-xl flex gap-3.5 items-start shadow-md">

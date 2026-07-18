@@ -48,7 +48,7 @@ export const WalletTab: React.FC = () => {
 
   // Admin Payment Configuration state
   const [payConfig, setPayConfig] = useState<any>({
-    upiId: 'victoryarena@upi',
+    upiId: 'titanesp@upi',
     qrCodeUrl: '',
     manualPaymentEnabled: true,
     paymentInstructions: '1. Scan the QR code or enter UPI ID.\n2. Enter the amount to transfer.\n3. Note down the 12-Digit Ref / UTR number from receipt.\n4. Submit it here to verify.',

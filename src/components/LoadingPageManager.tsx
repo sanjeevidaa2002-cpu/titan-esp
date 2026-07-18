@@ -1,9 +1,15 @@
+/**
+ * @license
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
 import React, { useState, useEffect } from 'react';
 import { useGame } from '../context/GameContext';
-import { Upload, ImageIcon, Check, Loader2, Save, Trash2, X } from 'lucide-react';
+import { Upload, ImageIcon, Check, Loader2, Save, Trash2, RotateCcw } from 'lucide-react';
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { storage } from '../firebase';
 import { LoadingScreenSettings } from '../types';
+import { TitanEsportsLogo } from './TitanEsportsLogo';
 
 export const LoadingPageManager: React.FC = () => {
   const { loadingScreenSettings, updateLoadingScreenSettings } = useGame();
@@ -38,15 +44,65 @@ export const LoadingPageManager: React.FC = () => {
         },
         async () => {
           const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
-          handleFieldChange('loadingLogoUrl', downloadURL);
-          handleFieldChange('loadingLogoSource', 'upload');
+          setLocalSettings(prev => ({
+            ...prev,
+            loadingLogoUrl: downloadURL,
+            uploadedLogoUrl: downloadURL,
+            loadingLogoType: 'upload',
+            loadingLogoSource: 'upload'
+          }));
           setImgError(false);
+          setSaveSuccess(null);
         }
       );
     } catch (err: any) {
       console.error("Upload error:", err);
       alert("Upload error.");
     }
+  };
+
+  const handleUrlChange = (val: string) => {
+    setLocalSettings(prev => ({
+      ...prev,
+      loadingLogoUrl: val,
+      directLogoUrl: val,
+      loadingLogoType: val ? 'url' : 'default'
+    }));
+    setImgError(false);
+    setSaveSuccess(null);
+  };
+
+  const handleRemoveLogo = () => {
+    setLocalSettings(prev => ({
+      ...prev,
+      loadingLogoUrl: '',
+      uploadedLogoUrl: '',
+      directLogoUrl: '',
+      loadingLogoType: 'default',
+      loadingLogoSource: 'url'
+    }));
+    setImgError(false);
+    setSaveSuccess(null);
+  };
+
+  const handleResetToDefaults = () => {
+    const DEFAULT_LOADING_SCREEN: LoadingScreenSettings = {
+      loadingLogoUrl: '',
+      loadingLogoSource: 'url',
+      loadingTitle: 'TITAN ESPORTS',
+      loadingSubtitle: 'PREMIUM GAMING',
+      loadingText: 'INITIALIZING SYSTEM',
+      backgroundColor: '#08080c',
+      backgroundImage: '',
+      progressBarEnabled: true,
+      animationEnabled: true,
+      uploadedLogoUrl: '',
+      directLogoUrl: '',
+      loadingLogoType: 'default'
+    };
+    setLocalSettings(DEFAULT_LOADING_SCREEN);
+    setImgError(false);
+    setSaveSuccess(null);
   };
 
   const handleSave = async () => {
@@ -64,7 +120,18 @@ export const LoadingPageManager: React.FC = () => {
     }
   };
 
-  const currentImageUrl = localSettings.loadingLogoUrl;
+  const getPreviewLogoUrl = () => {
+    if (localSettings.loadingLogoType === 'default') return '';
+    if (localSettings.loadingLogoType === 'upload') {
+      return localSettings.uploadedLogoUrl || localSettings.loadingLogoUrl || '';
+    }
+    if (localSettings.loadingLogoType === 'url') {
+      return localSettings.directLogoUrl || localSettings.loadingLogoUrl || '';
+    }
+    return localSettings.loadingLogoUrl || '';
+  };
+
+  const currentImageUrl = getPreviewLogoUrl();
 
   return (
     <div className="bg-[#0d0d15] border border-white/5 rounded-2xl overflow-hidden shadow-2xl flex flex-col h-[calc(100vh-140px)]">
@@ -95,9 +162,20 @@ export const LoadingPageManager: React.FC = () => {
           
           {/* Logo Section */}
           <div className="bg-[#0a0a0f] border border-white/5 p-5 rounded-xl space-y-4">
-            <div>
-              <h3 className="text-xs font-bold text-white uppercase tracking-wide">Loading Logo</h3>
-              <p className="text-[10px] text-neutral-400 mt-0.5">Choose an image upload or specify an external URL.</p>
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-xs font-bold text-white uppercase tracking-wide">Loading Logo</h3>
+                <p className="text-[10px] text-neutral-400 mt-0.5">Choose an image upload or specify an external URL.</p>
+              </div>
+              {localSettings.loadingLogoType && localSettings.loadingLogoType !== 'default' && (
+                <button
+                  onClick={handleRemoveLogo}
+                  className="flex items-center gap-1.5 px-2.5 py-1 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 hover:border-red-500/35 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  Remove Logo
+                </button>
+              )}
             </div>
 
             <div className="flex gap-4 mb-2">
@@ -105,7 +183,13 @@ export const LoadingPageManager: React.FC = () => {
                 <input 
                   type="radio" 
                   checked={localSettings.loadingLogoSource === 'upload'} 
-                  onChange={() => handleFieldChange('loadingLogoSource', 'upload')}
+                  onChange={() => {
+                    handleFieldChange('loadingLogoSource', 'upload');
+                    setLocalSettings(prev => ({
+                      ...prev,
+                      loadingLogoType: prev.uploadedLogoUrl ? 'upload' : 'default'
+                    }));
+                  }}
                   className="accent-gold-500"
                 />
                 <span className="text-xs text-neutral-300">Upload Image</span>
@@ -114,7 +198,13 @@ export const LoadingPageManager: React.FC = () => {
                 <input 
                   type="radio" 
                   checked={localSettings.loadingLogoSource === 'url'} 
-                  onChange={() => handleFieldChange('loadingLogoSource', 'url')}
+                  onChange={() => {
+                    handleFieldChange('loadingLogoSource', 'url');
+                    setLocalSettings(prev => ({
+                      ...prev,
+                      loadingLogoType: prev.directLogoUrl ? 'url' : 'default'
+                    }));
+                  }}
                   className="accent-gold-500"
                 />
                 <span className="text-xs text-neutral-300">Image URL</span>
@@ -122,25 +212,40 @@ export const LoadingPageManager: React.FC = () => {
             </div>
 
             {localSettings.loadingLogoSource === 'upload' ? (
-              <label className="flex items-center justify-center w-full h-24 bg-[#111116] border border-dashed border-white/20 rounded-xl cursor-pointer hover:border-gold-500/50 transition-colors">
-                <div className="flex flex-col items-center">
-                  <Upload className="w-6 h-6 text-neutral-400 mb-2" />
-                  <span className="text-xs text-neutral-300">Click to upload Logo</span>
-                </div>
-                <input type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
-              </label>
+              <div className="space-y-2">
+                <label className="flex items-center justify-center w-full h-24 bg-[#111116] border border-dashed border-white/20 rounded-xl cursor-pointer hover:border-gold-500/50 transition-colors">
+                  <div className="flex flex-col items-center">
+                    <Upload className="w-6 h-6 text-neutral-400 mb-2" />
+                    <span className="text-xs text-neutral-300">Click to upload Logo</span>
+                  </div>
+                  <input type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
+                </label>
+                {localSettings.uploadedLogoUrl && (
+                  <div className="text-[10px] text-emerald-400 flex items-center gap-1 font-mono break-all bg-emerald-500/5 border border-emerald-500/10 p-2 rounded-lg">
+                    <Check className="w-3 h-3 flex-shrink-0" />
+                    Uploaded: {localSettings.uploadedLogoUrl}
+                  </div>
+                )}
+              </div>
             ) : (
               <input
                 type="text"
-                value={localSettings.loadingLogoUrl}
-                onChange={(e) => {
-                  handleFieldChange('loadingLogoUrl', e.target.value);
-                  setImgError(false);
-                }}
+                value={localSettings.directLogoUrl || localSettings.loadingLogoUrl || ''}
+                onChange={(e) => handleUrlChange(e.target.value)}
                 placeholder="https://example.com/logo.png"
                 className="w-full bg-[#111116] border border-white/10 rounded-lg px-3 py-2 text-xs text-white focus:border-gold-500 outline-none font-mono"
               />
             )}
+
+            <div className="pt-2 border-t border-white/5 flex justify-end">
+              <button
+                onClick={handleResetToDefaults}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 border border-white/10 hover:border-white/25 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                Reset to Defaults
+              </button>
+            </div>
           </div>
 
           {/* Text Settings */}
@@ -252,10 +357,7 @@ export const LoadingPageManager: React.FC = () => {
                   onError={() => setImgError(true)}
                 />
               ) : (
-                <div className="w-full h-full rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center flex-col gap-2">
-                  <ImageIcon className="w-8 h-8 text-neutral-500" />
-                  <span className="text-[10px] text-neutral-500">No Image</span>
-                </div>
+                <TitanEsportsLogo className="w-20 h-20 max-w-full max-h-full object-contain" />
               )}
             </div>
 
@@ -298,4 +400,5 @@ export const LoadingPageManager: React.FC = () => {
     </div>
   );
 };
+
 export default LoadingPageManager;

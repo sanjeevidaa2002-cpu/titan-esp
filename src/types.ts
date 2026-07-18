@@ -31,6 +31,14 @@ export interface UserProfile {
   accountHolderName?: string;
   state?: string;
   country?: string;
+  userId?: string;
+  username?: string;
+  displayName?: string;
+  profilePhoto?: string;
+  walletBalance?: number;
+  provider?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export type RoomStatusType = 'open' | 'locked' | 'live' | 'completed';
@@ -444,4 +452,7 @@ export interface LoadingScreenSettings {
   progressBarEnabled: boolean;
   animationEnabled: boolean;
   updatedAt?: number;
+  uploadedLogoUrl?: string;
+  directLogoUrl?: string;
+  loadingLogoType?: 'upload' | 'url' | 'default';
 }

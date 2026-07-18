@@ -18,8 +18,41 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ onFinished }) => {
   const [progress, setProgress] = useState(0);
   const { loadingScreenSettings, brandingSettings } = useGame();
   const [cacheBuster] = useState(() => Date.now().toString());
+  const [logoFallbackIndex, setLogoFallbackIndex] = useState(0);
 
-  
+  useEffect(() => {
+    setLogoFallbackIndex(0);
+  }, [loadingScreenSettings]);
+
+  const getLogoSources = () => {
+    const type = loadingScreenSettings?.loadingLogoType || 'default';
+    const uploaded = loadingScreenSettings?.uploadedLogoUrl || '';
+    const direct = loadingScreenSettings?.directLogoUrl || '';
+    const legacy = loadingScreenSettings?.loadingLogoUrl || '';
+
+    if (type === 'upload') {
+      return [
+        uploaded || legacy,
+        direct,
+        'default'
+      ].filter(Boolean);
+    } else if (type === 'url') {
+      return [
+        direct || legacy,
+        uploaded,
+        'default'
+      ].filter(Boolean);
+    } else {
+      if (legacy) {
+        return [legacy, 'default'];
+      }
+      return ['default'];
+    }
+  };
+
+  const logoSources = getLogoSources();
+  const currentLogoSource = logoSources[logoFallbackIndex] || 'default';
+
   const getCacheBustedUrl = (url: string) => {
     if (!url) return '';
     if (url.startsWith('data:')) return url;
@@ -224,7 +257,7 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ onFinished }) => {
           </div>
         )}
         
-        {/* Animated Orbits & Victory Logo Container */}
+        {/* Animated Orbits & Titan Logo Container */}
         <motion.div 
           className="relative w-36 h-36 mb-8 flex items-center justify-center"
           {...getLogoAnimationProps()}
@@ -246,26 +279,24 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ onFinished }) => {
             {/* Glossy shine */}
             <div className="absolute -inset-full bg-gradient-to-r from-transparent via-white/10 to-transparent skew-x-12 animate-[shimmer_2.5s_infinite]" />
             
-            {/* Victory Mascot Logo representation */}
+            {/* Titan Mascot Logo representation */}
             <div className="relative flex flex-col items-center justify-center w-full h-full p-2">
               {(() => {
-                const logoType = brandingSettings?.splashLogoType || (displayLogoUrl ? 'custom' : 'titan');
-                if (logoType === 'titan') {
+                if (currentLogoSource === 'default') {
                   return <TitanEsportsLogo className="w-20 h-20 max-w-full max-h-full object-contain animate-pulse" />;
-                } else if (logoType === 'icon') {
-                  const IconComp = (LucideIcons as any)[brandingSettings?.splashCenterIcon || 'Trophy'] || Trophy;
-                  return <IconComp className="w-10 h-10 text-gold-400 animate-pulse" />;
                 } else {
-                  if (displayLogoUrl) {
-                    return (
-                      <img 
-                        src={getCacheBustedUrl(displayLogoUrl)} 
-                        alt="Splash Logo" 
-                        className="max-w-full max-h-full object-contain"
-                      />
-                    );
-                  }
-                  return <TitanEsportsLogo className="w-20 h-20 max-w-full max-h-full object-contain animate-pulse" />;
+                  return (
+                    <img 
+                      src={getCacheBustedUrl(currentLogoSource)} 
+                      alt="Splash Logo" 
+                      className="max-w-full max-h-full object-contain"
+                      onError={() => {
+                        if (logoFallbackIndex < logoSources.length - 1) {
+                          setLogoFallbackIndex(prev => prev + 1);
+                        }
+                      }}
+                    />
+                  );
                 }
               })()}
             </div>

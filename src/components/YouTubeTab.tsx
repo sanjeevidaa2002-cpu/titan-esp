@@ -311,7 +311,7 @@ export const YouTubeTab: React.FC = () => {
             <Youtube className="w-5 h-5 text-gold-400" />
           </div>
           <div>
-            <h2 className="text-sm font-extrabold uppercase tracking-widest text-white">Victory Stream</h2>
+            <h2 className="text-sm font-extrabold uppercase tracking-widest text-white">Titan Stream</h2>
             <p className="text-[10px] text-neutral-400 font-mono">Real-time Gaming Channels</p>
           </div>
         </div>

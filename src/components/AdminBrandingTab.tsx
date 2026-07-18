@@ -87,8 +87,8 @@ export const AdminBrandingTab: React.FC = () => {
       }
       
       // Synchronize text, layout, colors, and duration properties
-      const defaultTitle = `${processed.splashMainTitle || 'VICTORY'} ${processed.splashSecondaryTitle || 'ARENA'}`.trim();
-      processed.loadingTitle = processed.loadingTitle || defaultTitle || 'VICTORY ARENA';
+      const defaultTitle = `${processed.splashMainTitle || 'TITAN'} ${processed.splashSecondaryTitle || 'ESP'}`.trim();
+      processed.loadingTitle = processed.loadingTitle || defaultTitle || 'TITAN ESP';
       processed.loadingSubtitle = processed.loadingSubtitle || processed.splashSubtitle || 'PREPARE FOR BATTLE';
       processed.loadingLoadingText = processed.loadingLoadingText || processed.splashLoadingText || 'INITIALIZING SECURE CONNECTION...';
       processed.loadingText = processed.loadingLoadingText;
@@ -297,8 +297,6 @@ export const AdminBrandingTab: React.FC = () => {
             { id: 'favicon', label: 'Favicon & App Icons' },
             { id: 'header', label: 'Header Settings' },
             { id: 'footer', label: 'Footer Settings' },
-            { id: 'login', label: 'Login Page' },
-            { id: 'register', label: 'Register Page' },
             { id: 'loading', label: 'Loading Screen' },
             { id: 'colors', label: 'Color & Theme' },
           ].map(tab => (

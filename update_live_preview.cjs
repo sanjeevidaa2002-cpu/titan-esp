@@ -29,12 +29,13 @@ const titlePreviewTarget = `                {/* Text Layout */}
                 >
                   <div className="flex flex-wrap items-center justify-center gap-2 font-extrabold tracking-widest text-3xl md:text-4xl drop-shadow-lg mb-1.5 uppercase font-sans">
                     <span style={{ color: localSettings.splashMainTitleColor || '#e5a919' }}>
-                      {localSettings.loadingTitle ? localSettings.loadingTitle.split(' ')[0] : (localSettings.splashMainTitle || 'VICTORY')}
+                      {localSettings.loadingTitle ? localSettings.loadingTitle.split(' ')[0] : (localSettings.splashMainTitle || 'TITAN')}
                     </span>
                     <span style={{ color: localSettings.splashSecondaryTitleColor || '#ffffff' }}>
-                      {localSettings.loadingTitle ? localSettings.loadingTitle.split(' ').slice(1).join(' ') : (localSettings.splashSecondaryTitle || 'ARENA')}
+                      {localSettings.loadingTitle ? localSettings.loadingTitle.split(' ').slice(1).join(' ') : (localSettings.splashSecondaryTitle || 'ESP')}
                     </span>
                   </div>`;
+
 const titlePreviewReplacement = `                {/* Text Layout */}
                 <motion.div 
                   className="mb-6"
@@ -42,10 +43,10 @@ const titlePreviewReplacement = `                {/* Text Layout */}
                 >
                   <div className="flex flex-wrap items-center justify-center gap-2 font-extrabold tracking-widest text-3xl md:text-4xl drop-shadow-lg mb-1.5 uppercase font-sans">
                     <span style={{ color: localSettings.splashMainTitleColor || '#e5a919' }}>
-                      {localSettings.splashMainTitle || localSettings.loadingTitle || 'VICTORY'}
+                      {localSettings.splashMainTitle || localSettings.loadingTitle || 'TITAN'}
                     </span>
                     <span style={{ color: localSettings.splashSecondaryTitleColor || '#ffffff' }}>
-                      {localSettings.splashSecondaryTitle || 'ARENA'}
+                      {localSettings.splashSecondaryTitle || 'ESP'}
                     </span>
                   </div>`;
 content = content.replace(titlePreviewTarget, titlePreviewReplacement);
