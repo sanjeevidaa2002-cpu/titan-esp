@@ -47,7 +47,7 @@ setLogLevel('error');
 const auth = getAuth(app);
 // Ensure auth persistence is set to local
 setPersistence(auth, browserLocalPersistence).catch((err) => {
-  console.warn("Auth persistence failed:", err);
+  console.warn("Auth persistence failed:");
 });
 
 const googleProvider = new GoogleAuthProvider();

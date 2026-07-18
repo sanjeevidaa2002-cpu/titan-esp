@@ -1,22 +1,17 @@
 const fs = require('fs');
-let content = fs.readFileSync('server.ts', 'utf8');
+const path = require('path');
 
-const targetStr = `      if (isPaytm && !activeConfig.paytmEnabled) {
-        return res.status(400).json({ success: false, message: "Paytm Gateway is currently disabled by Admin." });
-      }`;
+const filePath = path.join(__dirname, 'server.ts');
+let content = fs.readFileSync(filePath, 'utf8');
 
-const replacementStr = `      if (isPaytm) {
-        if (!activeConfig.paytmMerchantKey) {
-          return res.status(400).json({ 
-            success: false, 
-            message: "Paytm API error: Merchant Key / Checksum Key is required but not configured. Automatic payments via Paytm are unsupported with only a Merchant ID." 
-          });
-        }
-        if (!activeConfig.paytmEnabled) {
-          return res.status(400).json({ success: false, message: "Paytm Gateway is currently disabled by Admin." });
-        }
-      }`;
+content = content.replace(
+  /console\.warn\("Firestore Client SDK inaccessible \(using local fallback configuration store instead\)\. Details:", err\);/g,
+  `console.warn("Firestore Client SDK inaccessible (using local fallback configuration store instead).");`
+);
 
-content = content.replace(targetStr, replacementStr);
-fs.writeFileSync('server.ts', content);
-console.log("Updated server.ts");
+content = content.replace(
+  /console\.warn\("Firestore inaccessible, returning local settings:", err\);/g,
+  `console.warn("Firestore inaccessible, returning local settings.");`
+);
+
+fs.writeFileSync(filePath, content);

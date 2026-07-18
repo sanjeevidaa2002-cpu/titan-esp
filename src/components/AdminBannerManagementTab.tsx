@@ -71,7 +71,7 @@ export const AdminBannerManagementTab: React.FC<{ showConfirm?: (title: string, 
       await saveHomepageBannerAdmin(bannerData);
       setEditingBanner(null);
     } catch (err) {
-      console.error(err);
+      console.error("An error occurred");
       alert("Failed to save banner");
     } finally {
       setIsSaving(false);
@@ -98,7 +98,7 @@ export const AdminBannerManagementTab: React.FC<{ showConfirm?: (title: string, 
         );
         setEditingBanner(prev => prev ? { ...prev, imageUrl: uploadResult.url } : null);
       } catch (err: any) {
-        console.error("Upload error:", err);
+        console.error("Upload error:");
         alert(`Failed to upload image: ${err.message || err}`);
       } finally {
         setUploadProgress(null);

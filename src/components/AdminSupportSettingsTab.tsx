@@ -131,7 +131,7 @@ export const AdminSupportSettingsTab: React.FC = () => {
       }
       triggerNotification("Success", `${type === 'whatsapp' ? 'WhatsApp' : 'Telegram'} icon uploaded successfully.`, "success");
     } catch (err: any) {
-      console.error(err);
+      console.error("An error occurred");
       if (type === 'whatsapp') {
         setWaError(err.message || "Upload failed");
         setWaUploadStatus('error');
@@ -169,7 +169,7 @@ export const AdminSupportSettingsTab: React.FC = () => {
       await updateContactWidgetSettings(processed);
       triggerNotification("Success", "Contact widget settings updated successfully.", "success");
     } catch (err) {
-      console.error(err);
+      console.error("An error occurred");
       triggerNotification("Error", "Failed to save settings.", "error");
     } finally {
       setIsSaving(false);

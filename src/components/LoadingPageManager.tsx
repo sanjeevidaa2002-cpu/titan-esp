@@ -110,7 +110,7 @@ export const LoadingPageManager: React.FC = () => {
         setUploadStatus('idle');
       }, 3000);
     } catch (err: any) {
-      console.error("Upload error:", err);
+      console.error("Upload error:");
       setUploadStatus('error');
       setUploadError(`Upload Error: ${err.message || err}`);
     }
@@ -189,7 +189,7 @@ export const LoadingPageManager: React.FC = () => {
       setSaveSuccess("Loading Screen Config Saved Successfully!");
       setTimeout(() => setSaveSuccess(null), 3000);
     } catch (error: any) {
-      console.error("Error saving loading settings:", error);
+      console.error("Error saving loading settings:");
       alert("Failed to save settings: " + error.message);
     } finally {
       setIsSaving(false);
@@ -200,6 +200,7 @@ export const LoadingPageManager: React.FC = () => {
     if (imgError) return '';
     const baseUrl = localSettings.loadingLogoUrl;
     if (baseUrl) {
+      if (baseUrl.startsWith('data:')) return baseUrl;
       const version = localSettings.updatedAt || Date.now();
       const cleanUrl = baseUrl.split('?v=')[0].split('&v=')[0];
       const separator = cleanUrl.includes('?') ? '&' : '?';

@@ -44,7 +44,7 @@ export const AdminBonusManagementTab: React.FC = () => {
       snap.forEach(doc => data.push({ id: doc.id, ...doc.data() } as BonusHistory));
       setHistory(data);
       setLoadingHistory(false);
-    });
+    }, (err) => console.warn('Bonus sync error.'));
     return () => unsub();
   }, []);
 

@@ -4,6 +4,7 @@
  */
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { NotificationSettings, PromoSettings } from '../types';
 import { 
   auth, 
   db, 
@@ -16,7 +17,9 @@ import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   User,
-  sendPasswordResetEmail
+  sendPasswordResetEmail,
+  signInWithRedirect,
+  getRedirectResult
 } from 'firebase/auth';
 import { 
   doc, 
@@ -62,6 +65,7 @@ import {
   DEFAULT_BRANDING,
   DEFAULT_SUPPORT_SETTINGS,
   DEFAULT_CONTACT_WIDGET_SETTINGS,
+  DEFAULT_NOTIFICATION_SETTINGS,
   DEFAULT_CATEGORIES,
   DEFAULT_WEEKLY_LEADERBOARD_CONFIG,
   SEED_WEEKLY_PLAYERS,
@@ -137,7 +141,13 @@ interface GameContextProps {
   saveStorageFileAdmin: (file: Omit<StorageFile, 'id'> & { id?: string }) => Promise<void>;
   deleteStorageFileAdmin: (id: string) => Promise<void>;
   updateStorageSettingsAdmin: (settings: Partial<StorageSettings>) => Promise<void>;
+  notificationSettings: NotificationSettings;
+  updateNotificationSettingsAdmin: (settings: Partial<NotificationSettings>) => Promise<void>;
+  promoSettings: PromoSettings;
+  updatePromoSettingsAdmin: (settings: Partial<PromoSettings>) => Promise<void>;
 }
+
+export const DEFAULT_PROMO_SETTINGS = { promoCodesEnabled: true };
 
 const GameContext = createContext<GameContextProps | undefined>(undefined);
 
@@ -182,6 +192,8 @@ const DEFAULT_LOADING_SCREEN: LoadingScreenSettings = {
   const [loadingScreenSettings, setLoadingScreenSettings] = useState<LoadingScreenSettings>(DEFAULT_LOADING_SCREEN);
   const [supportSettings, setSupportSettings] = useState<SupportSettings>(DEFAULT_SUPPORT_SETTINGS);
   const [contactWidgetSettings, setContactWidgetSettings] = useState<ContactWidgetSettings>(DEFAULT_CONTACT_WIDGET_SETTINGS);
+  const [notificationSettings, setNotificationSettings] = useState<NotificationSettings>(DEFAULT_NOTIFICATION_SETTINGS);
+  const [promoSettings, setPromoSettings] = useState<PromoSettings>(DEFAULT_PROMO_SETTINGS);
   const [categories, setCategories] = useState<GameCategory[]>(DEFAULT_CATEGORIES);
   const [weeklyPlayers, setWeeklyPlayers] = useState<WeeklyPlayer[]>([]);
   const [weeklyLeaderboardConfig, setWeeklyLeaderboardConfig] = useState<WeeklyLeaderboardConfig>(DEFAULT_WEEKLY_LEADERBOARD_CONFIG);
@@ -376,7 +388,7 @@ const DEFAULT_LOADING_SCREEN: LoadingScreenSettings = {
 
       return true;
     } catch (e) {
-      console.warn("Seeding failed or permission denied, using memory-state. Error:", e);
+      console.warn("Seeding failed or permission denied, using memory-state. Error:");
       setUseLocalFallback(true);
       return false;
     }
@@ -385,6 +397,14 @@ const DEFAULT_LOADING_SCREEN: LoadingScreenSettings = {
   // Sync state with Firestore in real-time, or use local state if fallback is active
   useEffect(() => {
     checkAndSeedDatabase().then((success) => {
+      const handleSnapshotError = (err: any, context: string) => {
+        console.warn(`${context} sync error: Firebase unavailable (Quota exceeded or permissions). Switching to local state.`);
+        if (err?.code === 'resource-exhausted' || err?.message?.includes('Quota limit exceeded')) {
+          console.error("Firebase quota exceeded, switching to local fallback mode.");
+          setUseLocalFallback(true);
+        }
+      };
+
       if (!success || useLocalFallback) {
         setLoading(false);
         return;
@@ -399,10 +419,7 @@ const DEFAULT_LOADING_SCREEN: LoadingScreenSettings = {
           });
           setTournaments(list);
         },
-        (err) => {
-          console.warn("Tournaments realtime sync failed, falling back:", err);
-          setUseLocalFallback(true);
-        }
+        (err) => handleSnapshotError(err, "Tournaments")
       );
 
       // Realtime bonus listener
@@ -412,9 +429,7 @@ const DEFAULT_LOADING_SCREEN: LoadingScreenSettings = {
         } else {
           setBonusSettings(null);
         }
-      }, (err) => {
-        console.warn("Bonus settings sync error:", err);
-      });
+      }, (err) => handleSnapshotError(err, "Bonus"));
 
       // Realtime leaderboard listener
       const unsubLeaderboard = onSnapshot(collection(db, 'leaderboard'),
@@ -426,7 +441,7 @@ const DEFAULT_LOADING_SCREEN: LoadingScreenSettings = {
           setLeaderboard(list.length > 0 ? list.sort((a,b) => b.totalEarnings - a.totalEarnings) : MOCK_LEADERBOARD);
         },
         (err) => {
-          console.warn("Leaderboard sync error:", err);
+          console.warn("Leaderboard sync error: Firebase unavailable.");
           setUseLocalFallback(true);
         }
       );
@@ -439,193 +454,134 @@ const DEFAULT_LOADING_SCREEN: LoadingScreenSettings = {
             list.push({ id: doc.id, ...doc.data() } as AppNotification);
           });
           setNotifications(list.length > 0 ? list : MOCK_NOTIFICATIONS);
-        },
-        (err) => {
-          console.warn("Notifications sync error:", err);
-          setUseLocalFallback(true);
-        }
+        }, (err) => handleSnapshotError(err, "Notifications")
       );
+
+
 
       // Realtime branding settings listener
-      const unsubBranding = onSnapshot(doc(db, 'settings', 'branding'),
-        (docSnap) => {
-          if (docSnap.exists()) {
-            setBrandingSettings(docSnap.data() as BrandingSettings);
-          } else {
-            // Document doesn't exist, seed it with default
-            setDoc(doc(db, 'settings', 'branding'), DEFAULT_BRANDING).catch(console.error);
-            setBrandingSettings(DEFAULT_BRANDING);
-          }
-        },
-        (err) => {
-          console.warn("Branding settings sync error:", err);
-          // Fallback handled silently
+      const unsubBranding = onSnapshot(doc(db, 'settings', 'branding'), (docSnap) => {
+        if (docSnap.exists()) {
+          setBrandingSettings(docSnap.data() as BrandingSettings);
+        } else {
+          setDoc(doc(db, 'settings', 'branding'), DEFAULT_BRANDING).catch(console.error);
+          setBrandingSettings(DEFAULT_BRANDING);
         }
-      );
+      }, (err) => handleSnapshotError(err, "Branding"));
+
+      // Realtime loading screen settings listener
+      const unsubLoadingScreen = onSnapshot(doc(db, "loading_settings", "config"), (docSnap) => {
+        if (docSnap.exists()) {
+          setLoadingScreenSettings(docSnap.data() as LoadingScreenSettings);
+        } else {
+          setLoadingScreenSettings(DEFAULT_LOADING_SCREEN);
+        }
+      }, (err) => handleSnapshotError(err, "LoadingScreen"));
 
       // Realtime support settings listener
-      const unsubLoadingScreen = onSnapshot(doc(db, "loading_settings", "config"),
-        (docSnap) => {
-          if (docSnap.exists()) {
-            setLoadingScreenSettings(docSnap.data() as LoadingScreenSettings);
-          } else {
-            // Try to read from settings/loading_screen if loading_settings config doesn't exist yet
-            getDoc(doc(db, "settings", "loading_screen")).then((legacySnap) => {
-              if (legacySnap.exists()) {
-                const legacyData = legacySnap.data() as LoadingScreenSettings;
-                setDoc(doc(db, "loading_settings", "config"), { ...legacyData, updatedAt: Date.now() }).catch(console.error);
-                setLoadingScreenSettings(legacyData);
-              } else {
-                setDoc(doc(db, "loading_settings", "config"), DEFAULT_LOADING_SCREEN).catch(console.error);
-                setLoadingScreenSettings(DEFAULT_LOADING_SCREEN);
-              }
-            }).catch(() => {
-              setDoc(doc(db, "loading_settings", "config"), DEFAULT_LOADING_SCREEN).catch(console.error);
-              setLoadingScreenSettings(DEFAULT_LOADING_SCREEN);
-            });
-          }
-        },
-        (err) => {
-          console.warn("Loading screen settings sync error:", err);
+      const unsubSupport = onSnapshot(doc(db, 'support_settings', 'config'), (docSnap) => {
+        if (docSnap.exists()) {
+          setSupportSettings(docSnap.data() as SupportSettings);
+        } else {
+          setSupportSettings(DEFAULT_SUPPORT_SETTINGS);
         }
-      );
+      }, (err) => handleSnapshotError(err, "Support"));
 
-      const unsubSupport = onSnapshot(doc(db, 'support_settings', 'config'),
-        (docSnap) => {
-          if (docSnap.exists()) {
-            setSupportSettings(docSnap.data() as SupportSettings);
-          } else {
-            setDoc(doc(db, 'support_settings', 'config'), DEFAULT_SUPPORT_SETTINGS).catch(console.error);
-            setSupportSettings(DEFAULT_SUPPORT_SETTINGS);
-          }
-        },
-        (err) => {
-          console.warn("Support settings sync error:", err);
+      // Realtime contact widget settings listener
+      const unsubContactWidget = onSnapshot(doc(db, 'contact_widget_settings', 'config'), (docSnap) => {
+        if (docSnap.exists()) {
+          setContactWidgetSettings(docSnap.data() as ContactWidgetSettings);
+        } else {
+          setContactWidgetSettings(DEFAULT_CONTACT_WIDGET_SETTINGS);
         }
-      );
-
-      const unsubContactWidget = onSnapshot(doc(db, 'contact_widget_settings', 'config'),
-        (docSnap) => {
-          if (docSnap.exists()) {
-            setContactWidgetSettings(docSnap.data() as ContactWidgetSettings);
-          } else {
-            setDoc(doc(db, 'contact_widget_settings', 'config'), DEFAULT_CONTACT_WIDGET_SETTINGS).catch(console.error);
-            setContactWidgetSettings(DEFAULT_CONTACT_WIDGET_SETTINGS);
-          }
-        },
-        (err) => {
-          console.warn("Contact widget settings sync error:", err);
-        }
-      );
+      }, (err) => handleSnapshotError(err, "ContactWidget"));
 
       // Realtime categories listener
-      const unsubCategories = onSnapshot(collection(db, 'categories'),
-        (snapshot) => {
-          const list: GameCategory[] = [];
-          snapshot.forEach((doc) => {
-            list.push({ id: doc.id, ...doc.data() } as GameCategory);
-          });
-          list.sort((a, b) => (a.order || 0) - (b.order || 0));
-          setCategories(list.length > 0 ? list : DEFAULT_CATEGORIES);
-        },
-        (err) => {
-          console.warn("Categories sync error:", err);
-        }
-      );
+      const unsubCategories = onSnapshot(collection(db, 'categories'), (snapshot) => {
+        const list: GameCategory[] = [];
+        snapshot.forEach((doc) => {
+          list.push({ id: doc.id, ...doc.data() } as GameCategory);
+        });
+        setCategories(list.length > 0 ? list : DEFAULT_CATEGORIES);
+      }, (err) => handleSnapshotError(err, "Categories"));
 
       // Realtime weekly players listener
-      const unsubWeeklyPlayers = onSnapshot(collection(db, 'weekly_players'),
-        (snapshot) => {
-          const list: WeeklyPlayer[] = [];
-          snapshot.forEach((doc) => {
-            list.push({ id: doc.id, ...doc.data() } as WeeklyPlayer);
-          });
-          setWeeklyPlayers(list);
-        },
-        (err) => {
-          console.warn("Weekly players sync error:", err);
-        }
-      );
+      const unsubWeeklyPlayers = onSnapshot(collection(db, 'weekly_players'), (snapshot) => {
+        const list: WeeklyPlayer[] = [];
+        snapshot.forEach((doc) => {
+          list.push({ id: doc.id, ...doc.data() } as WeeklyPlayer);
+        });
+        setWeeklyPlayers(list);
+      }, (err) => handleSnapshotError(err, "WeeklyPlayers"));
 
       // Realtime winners listener
-      const unsubWinners = onSnapshot(collection(db, 'winners'),
-        (snapshot) => {
-          const list: TournamentWinner[] = [];
-          snapshot.forEach((doc) => {
-            list.push({ id: doc.id, ...doc.data() } as TournamentWinner);
-          });
-          setWinners(list.length > 0 ? list : SEED_WINNERS);
-        },
-        (err) => {
-          console.warn("Winners sync error:", err);
-          setWinners(SEED_WINNERS);
-        }
-      );
+      const unsubWinners = onSnapshot(collection(db, 'winners'), (snapshot) => {
+        const list: TournamentWinner[] = [];
+        snapshot.forEach((doc) => {
+          list.push({ id: doc.id, ...doc.data() } as TournamentWinner);
+        });
+        setWinners(list.length > 0 ? list : SEED_WINNERS);
+      }, (err) => handleSnapshotError(err, "Winners"));
 
       // Realtime weekly leaderboard config listener
-      const unsubWeeklyLeaderboardConfig = onSnapshot(doc(db, 'settings', 'weekly_leaderboard'),
-        (docSnap) => {
-          if (docSnap.exists()) {
-            setWeeklyLeaderboardConfig(docSnap.data() as WeeklyLeaderboardConfig);
-          } else {
-            setDoc(doc(db, 'settings', 'weekly_leaderboard'), DEFAULT_WEEKLY_LEADERBOARD_CONFIG).catch(console.error);
-            setWeeklyLeaderboardConfig(DEFAULT_WEEKLY_LEADERBOARD_CONFIG);
-          }
-        },
-        (err) => {
-          console.warn("Weekly leaderboard config sync error:", err);
+      const unsubWeeklyLeaderboardConfig = onSnapshot(doc(db, 'settings', 'weekly_leaderboard'), (docSnap) => {
+        if (docSnap.exists()) {
+          setWeeklyLeaderboardConfig(docSnap.data() as WeeklyLeaderboardConfig);
+        } else {
+          setWeeklyLeaderboardConfig(DEFAULT_WEEKLY_LEADERBOARD_CONFIG);
         }
-      );
+      }, (err) => handleSnapshotError(err, "WeeklyLeaderboardConfig"));
 
-      // Realtime homepage_banners listener
-      const unsubBanners = onSnapshot(collection(db, 'homepage_banners'),
-        (snapshot) => {
-          const list: HomepageBanner[] = [];
-          snapshot.forEach((doc) => {
-            list.push({ id: doc.id, ...doc.data() } as HomepageBanner);
-          });
-          list.sort((a, b) => a.displayOrder - b.displayOrder);
-          setHomepageBanners(list);
-        },
-        (err) => {
-          console.warn("Homepage Banners sync error:", err);
-        }
-      );
+      // Realtime homepage banners listener
+      const unsubBanners = onSnapshot(collection(db, 'homepage_banners'), (snapshot) => {
+        const list: HomepageBanner[] = [];
+        snapshot.forEach((doc) => {
+          list.push({ id: doc.id, ...doc.data() } as HomepageBanner);
+        });
+        setHomepageBanners(list);
+      }, (err) => handleSnapshotError(err, "Banners"));
 
       // Realtime storage files listener
-      const unsubStorageFiles = onSnapshot(collection(db, 'storage_files'),
-        (snapshot) => {
-          const list: StorageFile[] = [];
-          snapshot.forEach((doc) => {
-            list.push({ id: doc.id, ...doc.data() } as StorageFile);
-          });
-          list.sort((a, b) => b.uploadedAt - a.uploadedAt);
-          setStorageFiles(list);
-        },
-        (err) => {
-          console.warn("Storage Files sync error:", err);
+      const unsubStorageFiles = onSnapshot(collection(db, 'storage_files'), (snapshot) => {
+        const list: StorageFile[] = [];
+        snapshot.forEach((doc) => {
+          list.push({ id: doc.id, ...doc.data() } as StorageFile);
+        });
+        setStorageFiles(list);
+      }, (err) => handleSnapshotError(err, "StorageFiles"));
+
+      // Realtime promo settings listener
+      const unsubPromoSettings = onSnapshot(doc(db, 'settings', 'promo'), (docSnap) => {
+        if (docSnap.exists()) {
+          setPromoSettings(docSnap.data() as PromoSettings);
+        } else {
+          setPromoSettings(DEFAULT_PROMO_SETTINGS);
         }
-      );
+      }, (err) => handleSnapshotError(err, "PromoSettings"));
+      
+      // Realtime notification settings listener
+      const unsubNotificationSettings = onSnapshot(doc(db, 'settings', 'notifications'), (docSnap) => {
+        if (docSnap.exists()) {
+          setNotificationSettings(docSnap.data() as NotificationSettings);
+        } else {
+          setNotificationSettings(DEFAULT_NOTIFICATION_SETTINGS);
+        }
+      }, (err) => handleSnapshotError(err, "NotificationSettings"));
 
       // Realtime storage settings listener
-      const unsubStorageSettings = onSnapshot(doc(db, 'settings', 'storage'),
-        (docSnap) => {
-          if (docSnap.exists()) {
-            setStorageSettings(docSnap.data() as StorageSettings);
-          } else {
-            const defaults: StorageSettings = { provider: 'firebase' };
-            setDoc(doc(db, 'settings', 'storage'), defaults).catch(console.error);
-            setStorageSettings(defaults);
-          }
-        },
-        (err) => {
-          console.warn("Storage Settings sync error:", err);
+      const unsubStorageSettings = onSnapshot(doc(db, 'settings', 'storage'), (docSnap) => {
+        if (docSnap.exists()) {
+          setStorageSettings(docSnap.data() as StorageSettings);
+        } else {
+          setStorageSettings({ provider: 'firebase' });
         }
-      );
+      }, (err) => handleSnapshotError(err, "StorageSettings"));
 
       setLoading(false);
 
       return () => {
+        unsubNotificationSettings();
+        unsubPromoSettings();
         unsubTournaments();
         unsubBonusSettings();
         unsubLeaderboard();
@@ -643,6 +599,37 @@ const DEFAULT_LOADING_SCREEN: LoadingScreenSettings = {
         unsubStorageSettings();
       };
     });
+
+  }, [useLocalFallback]);
+
+  // Handle Redirect Result on Mount
+  useEffect(() => {
+    const handleRedirect = async () => {
+      try {
+        console.log("Checking for Google redirect sign-in result...");
+        const result = await getRedirectResult(auth);
+        if (result?.user) {
+          console.log("Successfully signed in via redirect:", result.user);
+          setCurrentUser(result.user);
+        }
+      } catch (err: any) {
+        console.error("Error retrieving Google redirect sign-in result:");
+        let friendlyMessage = err.message || "Google Redirect Sign-In failed.";
+        if (err.code === 'auth/unauthorized-domain' || friendlyMessage.includes('unauthorized-domain') || friendlyMessage.includes('authDomain')) {
+          friendlyMessage = "This domain is not authorized for Google Sign-In. Please contact the administrator to add this domain to the Firebase Console Authorized Domains list.";
+        } else if (err.code === 'auth/invalid-oauth-client-id' || friendlyMessage.includes('client-id')) {
+          friendlyMessage = "Invalid OAuth Client ID configuration in Firebase.";
+        } else if (err.code === 'auth/network-request-failed') {
+          friendlyMessage = "Network error. Please check your internet connection.";
+        }
+        setError(friendlyMessage);
+        triggerNotification("Authentication Error", friendlyMessage, "alert");
+      }
+    };
+    
+    if (!useLocalFallback) {
+      handleRedirect();
+    }
   }, [useLocalFallback]);
 
   // Auth Status listener
@@ -666,6 +653,11 @@ const DEFAULT_LOADING_SCREEN: LoadingScreenSettings = {
             unsubUserSnapshot = onSnapshot(userDocRef, (docSnap) => {
               if (docSnap.exists()) {
                 setUserProfile(docSnap.data() as UserProfile);
+              }
+            }, (err) => {
+              console.warn("User profile sync error: Firebase unavailable.");
+              if (err?.code === 'resource-exhausted' || err?.message?.includes('Quota limit exceeded')) {
+                setUseLocalFallback(true);
               }
             });
 
@@ -742,7 +734,7 @@ const DEFAULT_LOADING_SCREEN: LoadingScreenSettings = {
             setupLocalProfile(user);
           }
         } catch (e) {
-          console.warn("Failed to retrieve or create profile, fallback to local:", e);
+          console.warn("Failed to retrieve or create profile, fallback to local:");
           setupLocalProfile(user);
         }
       } else {
@@ -764,10 +756,15 @@ const DEFAULT_LOADING_SCREEN: LoadingScreenSettings = {
                 }
 
                 unsubUserSnapshot = onSnapshot(userDocRef, (docSnap) => {
-                  if (docSnap.exists()) {
-                    setUserProfile(docSnap.data() as UserProfile);
-                  }
-                });
+              if (docSnap.exists()) {
+                setUserProfile(docSnap.data() as UserProfile);
+              }
+            }, (err) => {
+              console.warn("User profile sync error: Firebase unavailable.");
+              if (err?.code === 'resource-exhausted' || err?.message?.includes('Quota limit exceeded')) {
+                setUseLocalFallback(true);
+              }
+            });
                 syncTransactions(customUser.uid);
                 return;
               } else {
@@ -777,7 +774,7 @@ const DEFAULT_LOADING_SCREEN: LoadingScreenSettings = {
               localStorage.removeItem('custom_auth_user');
             }
           } catch (e) {
-            console.warn("Failed to retrieve custom user session", e);
+            console.warn("Failed to retrieve custom user session");
             localStorage.removeItem('custom_auth_user');
           }
         }
@@ -809,7 +806,7 @@ const DEFAULT_LOADING_SCREEN: LoadingScreenSettings = {
         try {
           setRegistrations(JSON.parse(localRegs));
         } catch (e) {
-          console.warn(e);
+          console.warn("An error occurred");
         }
       }
       return;
@@ -838,13 +835,14 @@ const DEFAULT_LOADING_SCREEN: LoadingScreenSettings = {
       });
       setRegistrations(list);
     }, (err) => {
-      console.warn("Registrations sync error, using local fallback:", err);
+      console.warn("Registrations sync error, using local fallback. Firebase unavailable.");
+      if (err?.code === 'resource-exhausted' || err?.message?.includes('Quota limit exceeded')) setUseLocalFallback(true);
       const localRegs = localStorage.getItem('registrations');
       if (localRegs) {
         try {
           setRegistrations(JSON.parse(localRegs));
         } catch (e) {
-          console.warn(e);
+          console.warn("An error occurred");
         }
       }
     });
@@ -862,7 +860,7 @@ const DEFAULT_LOADING_SCREEN: LoadingScreenSettings = {
         list.push({ id: doc.id, ...doc.data() } as Transaction);
       });
       setTransactions(list);
-    }, (err) => console.warn("Transactions sync error:", err));
+    }, (err) => { console.warn("Transactions sync error: Firebase unavailable."); if (err?.code === 'resource-exhausted' || err?.message?.includes('Quota limit exceeded')) setUseLocalFallback(true); });
   };
 
   const setupLocalProfile = (user: User) => {
@@ -949,7 +947,7 @@ const DEFAULT_LOADING_SCREEN: LoadingScreenSettings = {
       const hashArray = Array.from(new Uint8Array(hashBuffer));
       return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
     } catch (err) {
-      console.error("SHA-256 hashing failed, using fallback hash:", err);
+      console.error("SHA-256 hashing failed, using fallback hash:");
       let hash = 0;
       for (let i = 0; i < password.length; i++) {
         const char = password.charCodeAt(i);
@@ -1137,12 +1135,61 @@ const DEFAULT_LOADING_SCREEN: LoadingScreenSettings = {
 
   const loginWithGoogle = async () => {
     setError(null);
+    
+    // Check if we are running in an iframe or WebView / embedded browser
+    let inIframe = false;
     try {
+      inIframe = window.self !== window.top;
+    } catch (e) {
+      inIframe = true;
+    }
+    const ua = window.navigator.userAgent.toLowerCase();
+    const isWebView = /wv|fbav|instagram|linkedin|twitter|gsa|messenger/i.test(ua);
+
+    // WebView / Embedded environments completely block popup windows, so we go straight to redirect
+    if (isWebView) {
+      console.log("WebView detected. Launching Google Redirect Sign-In directly...");
+      try {
+        await signInWithRedirect(auth, googleProvider);
+        return;
+      } catch (err: any) {
+        console.error("Direct signInWithRedirect failed:");
+        setError(err.message || "Failed to launch Google Redirect Sign-In.");
+        throw err;
+      }
+    }
+
+    try {
+      console.log("Attempting Google Popup Sign-In...");
       await signInWithPopup(auth, googleProvider);
     } catch (e: any) {
-      console.warn("Google sign-in popup blocked or failed, simulating demo sign-in for testing:");
-      setError(e.message || "Google sign-in popup was cancelled or blocked by frame constraints.");
-      throw e;
+      console.warn("Popup authentication failed or was blocked:");
+      const errCode = e?.code;
+      const errMsg = e?.message || "";
+      
+      // Check if popup was blocked, cancelled by frame constraints, or not supported
+      const isPopupBlocked = 
+        errCode === 'auth/popup-blocked' || 
+        errCode === 'auth/cancelled-popup-request' ||
+        errCode === 'auth/operation-not-supported-in-this-environment' ||
+        errCode === 'auth/iframe-userAgent-blocked' ||
+        errMsg.includes('popup') || 
+        errMsg.includes('iframe') ||
+        errMsg.includes('blocked');
+
+      if (isPopupBlocked) {
+        console.log("Popup blocked by environment or browser. Automatically switching to Google Redirect Sign-In...");
+        try {
+          await signInWithRedirect(auth, googleProvider);
+        } catch (redirectErr: any) {
+          console.error("Redirect sign-in fallback failed:", redirectErr);
+          setError(redirectErr.message || "Failed to launch Google Redirect Sign-In fallback.");
+          throw redirectErr;
+        }
+      } else {
+        setError(e.message || "Google Authentication failed.");
+        throw e;
+      }
     }
   };
 
@@ -1450,6 +1497,8 @@ const DEFAULT_LOADING_SCREEN: LoadingScreenSettings = {
     message: string, 
     type: 'info' | 'alert' | 'winner' | 'system'
   ) => {
+    if (!notificationSettings.notificationsEnabled) return;
+
     const notifyObj: AppNotification = {
       id: 'not_' + Date.now(),
       title,
@@ -1942,7 +1991,7 @@ const DEFAULT_LOADING_SCREEN: LoadingScreenSettings = {
       await setDoc(doc(db, 'settings', 'loading_screen'), mergedUpdates, { merge: true });
       await setDoc(doc(db, 'loading_settings', 'config'), mergedUpdates, { merge: true });
     } catch (err: any) {
-      console.error("Error updating loading screen settings:", err);
+      console.error("Error updating loading screen settings:");
       throw err;
     }
   };
@@ -1956,7 +2005,7 @@ const DEFAULT_LOADING_SCREEN: LoadingScreenSettings = {
         if (e.code === 'not-found') {
           await setDoc(doc(db, 'settings', 'branding'), { ...DEFAULT_BRANDING, ...updates });
         } else {
-          console.error("Failed to update branding settings:", e);
+          console.error("Failed to update branding settings:");
           throw e;
         }
       }
@@ -1973,7 +2022,7 @@ const DEFAULT_LOADING_SCREEN: LoadingScreenSettings = {
         if (e.code === 'not-found') {
           await setDoc(doc(db, 'support_settings', 'config'), { ...DEFAULT_SUPPORT_SETTINGS, ...updates });
         } else {
-          console.error("Failed to update support settings:", e);
+          console.error("Failed to update support settings:");
           throw e;
         }
       }
@@ -1990,7 +2039,7 @@ const DEFAULT_LOADING_SCREEN: LoadingScreenSettings = {
         if (e.code === 'not-found') {
           await setDoc(doc(db, 'contact_widget_settings', 'config'), { ...DEFAULT_CONTACT_WIDGET_SETTINGS, ...updates });
         } else {
-          console.error("Failed to update contact widget settings:", e);
+          console.error("Failed to update contact widget settings:");
           throw e;
         }
       }
@@ -2024,6 +2073,20 @@ const DEFAULT_LOADING_SCREEN: LoadingScreenSettings = {
     setStorageFiles(prev => prev.filter(f => f.id !== id));
     if (!useLocalFallback) {
       await deleteDoc(doc(db, 'storage_files', id));
+    }
+  };
+
+  const updatePromoSettingsAdmin = async (settings: Partial<PromoSettings>) => {
+    setPromoSettings(prev => ({ ...prev, ...settings }));
+    if (!useLocalFallback) {
+      await setDoc(doc(db, 'settings', 'promo'), settings, { merge: true });
+    }
+  };
+
+  const updateNotificationSettingsAdmin = async (settings: Partial<NotificationSettings>) => {
+    setNotificationSettings(prev => ({ ...prev, ...settings }));
+    if (!useLocalFallback) {
+      await setDoc(doc(db, 'settings', 'notifications'), settings, { merge: true });
     }
   };
 
@@ -2067,7 +2130,7 @@ const DEFAULT_LOADING_SCREEN: LoadingScreenSettings = {
         if (e.code === 'not-found') {
           await setDoc(doc(db, 'settings', 'weekly_leaderboard'), { ...DEFAULT_WEEKLY_LEADERBOARD_CONFIG, ...updates });
         } else {
-          console.error("Failed to update weekly leaderboard config:", e);
+          console.error("Failed to update weekly leaderboard config:");
           throw e;
         }
       }
@@ -2088,7 +2151,7 @@ const DEFAULT_LOADING_SCREEN: LoadingScreenSettings = {
       try {
         await setDoc(doc(db, 'winners', winner.id), winner);
       } catch (err) {
-        console.error("Error saving winner:", err);
+        console.error("Error saving winner:");
       }
     }
   };
@@ -2100,7 +2163,7 @@ const DEFAULT_LOADING_SCREEN: LoadingScreenSettings = {
       try {
         await deleteDoc(doc(db, 'winners', id));
       } catch (err) {
-        console.error("Error deleting winner:", err);
+        console.error("Error deleting winner:");
       }
     }
   };
@@ -2119,7 +2182,7 @@ const DEFAULT_LOADING_SCREEN: LoadingScreenSettings = {
       try {
         await setDoc(doc(db, 'homepage_banners', banner.id), banner);
       } catch (err) {
-        console.error("Error saving homepage banner:", err);
+        console.error("Error saving homepage banner:");
       }
     }
   };
@@ -2131,7 +2194,7 @@ const DEFAULT_LOADING_SCREEN: LoadingScreenSettings = {
       try {
         await deleteDoc(doc(db, 'homepage_banners', id));
       } catch (err) {
-        console.error("Error deleting homepage banner:", err);
+        console.error("Error deleting homepage banner:");
       }
     }
   };
@@ -2194,7 +2257,11 @@ const DEFAULT_LOADING_SCREEN: LoadingScreenSettings = {
       storageSettings,
       saveStorageFileAdmin,
       deleteStorageFileAdmin,
-      updateStorageSettingsAdmin
+      updateStorageSettingsAdmin,
+      notificationSettings,
+      updateNotificationSettingsAdmin,
+      promoSettings,
+      updatePromoSettingsAdmin
     }}>
       {children}
     </GameContext.Provider>

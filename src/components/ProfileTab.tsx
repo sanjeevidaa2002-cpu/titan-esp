@@ -31,7 +31,7 @@ interface ProfileTabProps {
 }
 
 export const ProfileTab: React.FC<ProfileTabProps> = ({ onSwitchTab }) => {
-  const { userProfile, updateProfile, logout } = useGame();
+  const { userProfile, updateProfile, logout, notificationSettings } = useGame();
   
   const [activeSubTab, setActiveSubTab] = useState<'main' | 'winnings'>('main');
 
@@ -207,23 +207,24 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ onSwitchTab }) => {
             </button>
           </div>
 
-          {/* Push Notification Switch row - exact replication */}
-          <div className="bg-[#111116] border border-white/5 rounded-2xl p-4 flex items-center justify-between shadow-lg">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-red-500/10 text-red-500 flex items-center justify-center">
-                <Bell className="w-4.5 h-4.5" />
+          {notificationSettings?.notificationsEnabled !== false && (
+            <div className="bg-[#111116] border border-white/5 rounded-2xl p-4 flex items-center justify-between shadow-lg">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-red-500/10 text-red-500 flex items-center justify-center">
+                  <Bell className="w-4.5 h-4.5" />
+                </div>
+                <span className="text-xs font-bold text-white tracking-wide">Push Notification</span>
               </div>
-              <span className="text-xs font-bold text-white tracking-wide">Push Notification</span>
-            </div>
 
-            {/* Custom Toggle switch */}
-            <button 
-              onClick={() => setPushEnabled(!pushEnabled)}
-              className={`w-12 h-6.5 rounded-full p-1 transition-all relative flex items-center cursor-pointer ${pushEnabled ? 'bg-neon-purple' : 'bg-neutral-800'}`}
-            >
-              <div className={`w-4.5 h-4.5 rounded-full bg-white transition-all shadow-md absolute ${pushEnabled ? 'right-1' : 'left-1'}`} />
-            </button>
-          </div>
+              {/* Custom Toggle switch */}
+              <button 
+                onClick={() => setPushEnabled(!pushEnabled)}
+                className={`w-12 h-6.5 rounded-full p-1 transition-all relative flex items-center cursor-pointer ${pushEnabled ? 'bg-neon-purple' : 'bg-neutral-800'}`}
+              >
+                <div className={`w-4.5 h-4.5 rounded-full bg-white transition-all shadow-md absolute ${pushEnabled ? 'right-1' : 'left-1'}`} />
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Right Column: Navigation options (My Activity) */}

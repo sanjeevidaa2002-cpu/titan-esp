@@ -50,6 +50,7 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ onFinished }) => {
     if (logoFallback) return null;
     const baseUrl = loadingScreenSettings?.loadingLogoUrl;
     if (baseUrl) {
+      if (baseUrl.startsWith('data:')) return baseUrl;
       const version = loadingScreenSettings?.updatedAt || Date.now();
       const cleanUrl = baseUrl.split('?v=')[0].split('&v=')[0];
       const separator = cleanUrl.includes('?') ? '&' : '?';

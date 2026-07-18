@@ -186,10 +186,10 @@ export const StorageManager: React.FC<{ showConfirm?: (title: string, message: s
       const logs: ConfigurationLog[] = [];
       snapshot.forEach((doc) => {
         logs.push({ id: doc.id, ...doc.data() } as ConfigurationLog);
-      });
+      }, (err) => console.warn('Storage sync error.'));
       setConfigLogs(logs);
     }, (err) => {
-      console.warn("Could not load API configuration logs from firestore:", err);
+      console.warn("Could not load API configuration logs from firestore:");
     });
     return () => unsub();
   }, []);
@@ -204,7 +204,7 @@ export const StorageManager: React.FC<{ showConfirm?: (title: string, message: s
         timestamp: Date.now()
       });
     } catch (err) {
-      console.error("Failed to write config change audit log:", err);
+      console.error("Failed to write config change audit log:");
     }
   };
 
@@ -348,7 +348,7 @@ export const StorageManager: React.FC<{ showConfirm?: (title: string, message: s
       triggerNotification("Settings Saved", `Successfully updated configurations and switched active provider to ${provider.toUpperCase()}`, "success" as any);
       await logConfigChange("Updated Cloud Provider settings", `Changed active provider to ${provider.toUpperCase()} and saved API details.`);
     } catch (err: any) {
-      console.error(err);
+      console.error("An error occurred");
       triggerNotification("Error", "Failed to save configuration: " + err.message, "alert" as any);
     } finally {
       setIsSavingSettings(false);
@@ -482,7 +482,7 @@ export const StorageManager: React.FC<{ showConfirm?: (title: string, message: s
       triggerNotification("Upload Success", `Successfully uploaded ${file.name} to active cloud storage via ${usedProvider.toUpperCase()}! 📦`, "success" as any);
       await logConfigChange("Uploaded File to Media Library", `File: ${file.name} | Size: ${formatBytes(file.size)} | Provider: ${usedProvider.toUpperCase()}`);
     } catch (err: any) {
-      console.error(err);
+      console.error("An error occurred");
       setUploadError(err.message || 'Unknown upload error');
       triggerNotification("Upload Failed", err.message, "alert" as any);
     } finally {

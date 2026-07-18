@@ -157,7 +157,7 @@ export const WalletTab: React.FC = () => {
             refreshTransactions();
           }
         } catch (e) {
-          console.warn("Polling error:", e);
+          console.warn("Polling error:");
         }
       }, 3000);
     }
@@ -800,7 +800,7 @@ export const WalletTab: React.FC = () => {
                                const fileToUpload = new File([blob], file.name, { type: 'image/jpeg' });
                                setScreenshot(fileToUpload);
                              } catch (err) {
-                               console.error("Compression error:", err);
+                               console.error("Compression error:");
                                alert("Failed to process image");
                              }
                           } else {

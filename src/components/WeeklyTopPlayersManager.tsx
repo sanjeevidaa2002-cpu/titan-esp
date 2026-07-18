@@ -153,7 +153,7 @@ export const WeeklyTopPlayersManager: React.FC = () => {
         setIsSaving(false);
         showToast("Weekly Leaderboard Updated Successfully.");
       } catch (err) {
-        console.error(err);
+        console.error("An error occurred");
         setIsSaving(false);
       }
     }, 400); // realistic fast interaction

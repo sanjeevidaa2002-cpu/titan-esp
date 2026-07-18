@@ -95,7 +95,7 @@ export const MediaPickerModal: React.FC<MediaPickerModalProps> = ({
       triggerNotification("Upload Success", `Uploaded & Selected ${file.name} successfully via ${usedProvider.toUpperCase()}!`, "success" as any);
       onSelect(finalUrl);
     } catch (err: any) {
-      console.error(err);
+      console.error("An error occurred");
       triggerNotification("Upload Failed", err.message, "alert" as any);
     } finally {
       setUploadProgress(null);

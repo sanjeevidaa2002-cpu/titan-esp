@@ -1,4 +1,5 @@
-import { LogOut } from "lucide-react";
+import {
+  Bell, LogOut } from "lucide-react";
 /**
  * @license
  * SPDX-License-Identifier: Apache-2.0
@@ -113,7 +114,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
     refundRegistrationAdmin,
     saveTournamentAdmin,
     deleteTournamentAdmin,
-    categories
+    categories,
+    notificationSettings,
+    updateNotificationSettingsAdmin,
+    promoSettings,
+    updatePromoSettingsAdmin
   } = useGame();
   
   // Admin Login States
@@ -131,6 +136,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
   const [dbTransactions, setDbTransactions] = useState<Transaction[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(true);
   const [searchUserQuery, setSearchUserQuery] = useState('');
+  const [localNotificationsEnabled, setLocalNotificationsEnabled] = useState<boolean | null>(null);
+  const [isSavingNotifications, setIsSavingNotifications] = useState(false);
   const [showStoragePicker, setShowStoragePicker] = useState(false);
   
   // Audit Logs
@@ -196,7 +203,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
         try {
           await onConfirm();
         } catch (e) {
-          console.warn("Error executing confirmed action:", e);
+          console.warn("Error executing confirmed action:");
         }
       }
     });
@@ -256,7 +263,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
         }
       }
     } catch (err) {
-      console.warn("Error loading YT Admin data:", err);
+      console.warn("Error loading YT Admin data:");
     } finally {
       setLoadingYt(false);
     }
@@ -489,7 +496,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
           setAppSettings(prev => ({ ...prev, ...parsed }));
         }
       } catch (e) {
-        console.warn("Could not read local app settings:", e);
+        console.warn("Could not read local app settings:");
       }
 
       // Then, fetch from Firestore
@@ -504,7 +511,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
           }));
         }
       } catch (err) {
-        console.warn("Could not fetch remote app settings from Firestore:", err);
+        console.warn("Could not fetch remote app settings from Firestore:");
       }
 
       // Also fetch dynamic payment gateway configurations from backend Express API
@@ -518,7 +525,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
           }));
         }
       } catch (err) {
-        console.warn("Could not fetch dynamic payment config from backend API:", err);
+        console.warn("Could not fetch dynamic payment config from backend API:");
       }
     };
     fetchSettings();
@@ -583,7 +590,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
       triggerNotification('Settings Saved', 'UPI & Automated Payment Gateway settings saved successfully to Firestore & Backend 🚀', 'system');
       addAuditLog('Updated payment gateways and UPI configurations');
     } catch (err: any) {
-      console.warn("Error saving app settings:", err);
+      console.warn("Error saving app settings:");
       // Fallback: save to localStorage
       try {
         localStorage.setItem('titan_esp_app_settings', JSON.stringify(appSettings));
@@ -603,11 +610,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
       const list: UserProfile[] = [];
       snapshot.forEach((doc) => {
         list.push(doc.data() as UserProfile);
-      });
+      }, (err) => console.warn('Users sync error.'));
       setDbUsers(list);
       setLoadingUsers(false);
     }, (err) => {
-      console.warn("Could not retrieve users real-time stream:", err);
+      console.warn("Could not retrieve users real-time stream:");
       // fallback
       setDbUsers([
         {
@@ -655,10 +662,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
       const list: Transaction[] = [];
       snapshot.forEach((doc) => {
         list.push({ id: doc.id, ...doc.data() } as Transaction);
-      });
+      }, (err) => console.warn('Transactions sync error.'));
       setDbTransactions(list);
     }, (err) => {
-      console.warn("Could not retrieve transactions stream:", err);
+      console.warn("Could not retrieve transactions stream:");
       setDbTransactions([
         {
           id: 't_1',
@@ -1051,7 +1058,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
       );
       setMatchForm({ ...matchForm, bannerUrl: uploadResult.url });
     } catch (err: any) {
-      console.error('Thumbnail upload failed:', err);
+      console.error('Thumbnail upload failed:');
       alert('Failed to upload thumbnail: ' + err.message);
     } finally {
       setIsUploadingThumbnail(false);
@@ -1390,6 +1397,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
   const handleTriggerPush = async () => {
     if (!pushTitle || !pushMessage) {
       alert("Please fill in notification title and description message!");
+      return;
+    }
+    if (notificationSettings?.notificationsEnabled === false) {
+      alert("Push notifications are currently disabled! Please turn them ON using the button in the header first.");
       return;
     }
     try {
@@ -3431,10 +3442,31 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
               
               {/* Promo Codes Manager */}
               <div className="bg-[#101017] border border-white/5 rounded-2xl p-4 space-y-4">
-                <h3 className="text-xs font-black text-white uppercase tracking-widest flex items-center gap-1.5 border-b border-white/5 pb-2">
-                  <Code className="w-4.5 h-4.5 text-gold-400" />
-                  Gamer Promo Discount Codes
-                </h3>
+                <div className="flex items-center justify-between border-b border-white/5 pb-2">
+                  <h3 className="text-xs font-black text-white uppercase tracking-widest flex items-center gap-1.5">
+                    <Code className="w-4.5 h-4.5 text-gold-400" />
+                    Gamer Promo Discount Codes
+                  </h3>
+                  
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (updatePromoSettingsAdmin) {
+                        updatePromoSettingsAdmin({ 
+                          promoCodesEnabled: !promoSettings?.promoCodesEnabled 
+                        });
+                        triggerNotification("Settings Updated", `Promo Codes have been ${!promoSettings?.promoCodesEnabled ? 'enabled' : 'disabled'}.`, "info");
+                      }
+                    }}
+                    className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer ${
+                      promoSettings?.promoCodesEnabled !== false
+                        ? 'bg-purple-600 hover:bg-purple-500 text-white shadow-[0_0_10px_rgba(168,85,247,0.3)]' 
+                        : 'bg-neutral-800 hover:bg-neutral-700 text-neutral-400'
+                    }`}
+                  >
+                    {promoSettings?.promoCodesEnabled !== false ? '🔔 ON' : '🔕 OFF'}
+                  </button>
+                </div>
 
                 {/* Create Promo Code form */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
@@ -3496,10 +3528,64 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
 
               {/* Push Alerts Trigger */}
               <div className="bg-[#101017] border border-white/5 rounded-2xl p-4 space-y-4">
-                <h3 className="text-xs font-black text-white uppercase tracking-widest flex items-center gap-1.5 border-b border-white/5 pb-2">
-                  <BellRing className="w-4.5 h-4.5 text-blue-400" />
-                  Broadcaster Push Notifications
-                </h3>
+                <div className="flex items-start justify-between border-b border-white/5 pb-2">
+                  <h3 className="text-xs font-black text-white uppercase tracking-widest flex items-center gap-1.5 mt-1">
+                    <BellRing className="w-4.5 h-4.5 text-blue-400" />
+                    Broadcaster Push Notifications
+                  </h3>
+                  
+                  <div className="flex flex-col gap-2 items-end">
+                    <button
+                      type="button"
+                      disabled={isSavingNotifications}
+                      onClick={() => {
+                        const currentState = localNotificationsEnabled !== null ? localNotificationsEnabled : !!notificationSettings?.notificationsEnabled;
+                        setLocalNotificationsEnabled(!currentState);
+                      }}
+                      className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer ${
+                        (localNotificationsEnabled !== null ? localNotificationsEnabled : notificationSettings?.notificationsEnabled)
+                          ? 'bg-purple-600 hover:bg-purple-500 text-white shadow-[0_0_10px_rgba(168,85,247,0.3)]' 
+                          : 'bg-neutral-800 hover:bg-neutral-700 text-neutral-400'
+                      }`}
+                    >
+                      {(localNotificationsEnabled !== null ? localNotificationsEnabled : notificationSettings?.notificationsEnabled) ? '🔔 ON' : '🔕 OFF'}
+                    </button>
+
+                    <button
+                      type="button"
+                      disabled={isSavingNotifications || localNotificationsEnabled === null || localNotificationsEnabled === notificationSettings?.notificationsEnabled}
+                      onClick={async () => {
+                        if (localNotificationsEnabled === null || updateNotificationSettingsAdmin == null) return;
+                        setIsSavingNotifications(true);
+                        try {
+                          await updateNotificationSettingsAdmin({ notificationsEnabled: localNotificationsEnabled });
+                          triggerNotification("Success", "Notification settings saved successfully.", "success");
+                          setLocalNotificationsEnabled(null);
+                        } catch (err) {
+                          triggerNotification("Error", "Failed to save notification settings. Please try again.", "error");
+                          setLocalNotificationsEnabled(null);
+                        } finally {
+                          setIsSavingNotifications(false);
+                        }
+                      }}
+                      className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all flex items-center gap-1.5 ${
+                        localNotificationsEnabled !== null && localNotificationsEnabled !== notificationSettings?.notificationsEnabled && !isSavingNotifications
+                          ? 'bg-emerald-500 hover:bg-emerald-400 text-black shadow-[0_0_10px_rgba(16,185,129,0.3)] cursor-pointer'
+                          : 'bg-neutral-800 text-neutral-500 cursor-not-allowed opacity-50'
+                      }`}
+                    >
+                      {isSavingNotifications ? (
+                        <>
+                          <RefreshCw className="w-3 h-3 animate-spin" /> Saving...
+                        </>
+                      ) : (
+                        <>
+                          <Check className="w-3 h-3" /> Save Changes
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
 
                 <div className="space-y-3">
                   <div>
@@ -3604,6 +3690,71 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
               <p className="text-xs text-neutral-400 font-sans">Configure high-security payment gateways API credentials, UPI direct channels, automated webhook handlers, and global priority routing.</p>
             </div>
 
+            
+            {/* Global Notification Setting */}
+            <div className="bg-[#101017] border border-white/5 rounded-2xl p-5 space-y-4 mb-6">
+              <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
+                <div className="space-y-0.5 flex-1">
+                  <h3 className="text-xs font-black text-white uppercase tracking-widest flex items-center gap-1.5">
+                    <Bell className="w-4 h-4 text-purple-400" />
+                    Global Notification Settings
+                  </h3>
+                  <p className="text-[10px] text-neutral-400">Enable or disable all notifications system-wide. When disabled, users will not receive push notifications or in-app alerts.</p>
+                </div>
+                <div className="flex flex-col gap-3 min-w-[160px]">
+                  <button
+                    type="button"
+                    disabled={isSavingNotifications}
+                    onClick={() => {
+                      const currentState = localNotificationsEnabled !== null ? localNotificationsEnabled : !!notificationSettings?.notificationsEnabled;
+                      setLocalNotificationsEnabled(!currentState);
+                    }}
+                    className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-2 ${
+                      (localNotificationsEnabled !== null ? localNotificationsEnabled : notificationSettings?.notificationsEnabled) 
+                        ? 'bg-purple-600 hover:bg-purple-500 text-white shadow-[0_0_15px_rgba(168,85,247,0.4)]' 
+                        : 'bg-neutral-800 hover:bg-neutral-700 text-neutral-400'
+                    }`}
+                  >
+                    {(localNotificationsEnabled !== null ? localNotificationsEnabled : notificationSettings?.notificationsEnabled) ? '🔔 Notifications ON' : '🔕 Notifications OFF'}
+                  </button>
+                  
+                  <button
+                    type="button"
+                    disabled={isSavingNotifications || localNotificationsEnabled === null || localNotificationsEnabled === notificationSettings?.notificationsEnabled}
+                    onClick={async () => {
+                      if (localNotificationsEnabled === null || updateNotificationSettingsAdmin == null) return;
+                      setIsSavingNotifications(true);
+                      try {
+                        await updateNotificationSettingsAdmin({ notificationsEnabled: localNotificationsEnabled });
+                        triggerNotification("Success", "Notification settings saved successfully.", "success");
+                        setLocalNotificationsEnabled(null);
+                      } catch (err) {
+                        triggerNotification("Error", "Failed to save notification settings. Please try again.", "error");
+                        setLocalNotificationsEnabled(null);
+                      } finally {
+                        setIsSavingNotifications(false);
+                      }
+                    }}
+                    className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-2 ${
+                      localNotificationsEnabled !== null && localNotificationsEnabled !== notificationSettings?.notificationsEnabled && !isSavingNotifications
+                        ? 'bg-emerald-500 hover:bg-emerald-400 text-black shadow-[0_0_15px_rgba(16,185,129,0.4)] cursor-pointer'
+                        : 'bg-neutral-800 text-neutral-500 cursor-not-allowed opacity-50'
+                    }`}
+                  >
+                    {isSavingNotifications ? (
+                      <>
+                        <RefreshCw className="w-3 h-3 animate-spin" /> Saving...
+                      </>
+                    ) : (
+                      <>
+                        <Check className="w-3 h-3" /> Save Changes
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
+
             {/* Global Gateway Routing Controller */}
             <div className="bg-[#101017] border border-white/5 rounded-2xl p-5 space-y-4">
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -3682,7 +3833,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
                                 const compressedDataUrl = await compressImage(file, 0.1, 512);
                                 setAppSettings({...appSettings, qrCodeUrl: compressedDataUrl});
                               } catch (error) {
-                                console.error("Error compressing image", error);
+                                console.error("Error compressing image");
                                 alert("Failed to process image.");
                               }
                             }

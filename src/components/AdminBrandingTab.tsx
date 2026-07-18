@@ -184,7 +184,7 @@ export const AdminBrandingTab: React.FC = () => {
         setIsSaving(false);
         setUploadProgress(prev => ({ ...prev, [field]: 0 }));
       } catch (error) {
-        console.error("Error processing/uploading image", error);
+        console.error("Error processing/uploading image");
         triggerNotification("Error", "Failed to process image.", "alert");
         setIsSaving(false);
         setUploadProgress(prev => ({ ...prev, [field]: 0 }));

@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 
-const splashPath = path.join(__dirname, 'src/components/SplashScreen.tsx');
+const splashPath = path.join(__dirname, 'src/components/LoadingPageManager.tsx');
 let content = fs.readFileSync(splashPath, 'utf8');
 
 content = content.replace(
@@ -10,4 +10,4 @@ content = content.replace(
 );
 
 fs.writeFileSync(splashPath, content);
-console.log("SplashScreen patched");
+console.log("LoadingPageManager patched");

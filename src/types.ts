@@ -530,3 +530,10 @@ export interface ContactWidgetSettings {
 }
 
 
+
+export interface NotificationSettings {
+  notificationsEnabled: boolean;
+}
+export interface PromoSettings {
+  promoCodesEnabled: boolean;
+}

@@ -115,7 +115,7 @@ export const preloadYouTubeData = async () => {
     
     lastYtFetch = Date.now();
   } catch (err) {
-    console.warn("Error preloading YouTube metadata:", err);
+    console.warn("Error preloading YouTube metadata:");
   } finally {
     isFetchingYT = false;
   }
@@ -216,7 +216,7 @@ export const YouTubeTab: React.FC = () => {
       lastYtFetch = Date.now();
 
     } catch (err: any) {
-      console.warn("Error retrieving YouTube metadata:", err);
+      console.warn("Error retrieving YouTube metadata:");
       if (!cachedStr) {
         setError(err.message || "An unexpected error occurred while fetching YouTube stream data.");
       }

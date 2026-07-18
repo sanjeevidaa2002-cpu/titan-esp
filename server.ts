@@ -127,7 +127,7 @@ async function startServer() {
       
       res.json({ success: true, message: "Payment request submitted!" });
     } catch (err: any) {
-      console.error("Manual payment submission error:", err);
+      console.error("An error occurred");
       res.status(500).json({ success: false, message: "Internal server error." });
     }
   });
@@ -165,7 +165,7 @@ async function startServer() {
         return dbData;
       }
     } catch (err) {
-      console.warn("Firestore Client SDK inaccessible (using local fallback configuration store instead). Details:", err);
+      console.warn("Firestore Client SDK inaccessible (using local fallback configuration store instead).");
     }
     return localYouTubeConfig;
   }
@@ -304,7 +304,7 @@ async function startServer() {
         const docRef = doc(db, "appSettings", "youtube");
         await setDoc(docRef, configData);
       } catch (err) {
-        console.warn("Failed to write YouTube config to remote Firestore. Saved locally in-memory instead. Details:", err);
+        console.warn("Failed to write YouTube config to remote Firestore. Saved locally in-memory instead.");
       }
 
       // Clear memory caches upon configuration change
@@ -438,7 +438,7 @@ async function startServer() {
           const detailsItem = details.items?.[0];
           viewerCount = parseInt(detailsItem?.liveStreamingDetails?.concurrentViewers, 10) || 0;
         } catch (detailErr) {
-          console.error("Error fetching live streaming details:", detailErr);
+          console.error("An error occurred");
         }
 
         activeLive = {
@@ -464,7 +464,7 @@ async function startServer() {
           publishedAt: v.snippet.publishedAt
         }));
       } catch (upcomingErr) {
-        console.error("Error fetching upcoming streams:", upcomingErr);
+        console.error("An error occurred");
       }
 
       const liveStatus = {
@@ -493,7 +493,7 @@ async function startServer() {
         return res.json(localAppSettings);
       }
     } catch (err) {
-      console.warn("Firestore inaccessible, returning local settings:", err);
+      console.warn("Firestore inaccessible, returning local settings.");
     }
     return res.json(localAppSettings);
   });
@@ -536,7 +536,7 @@ async function startServer() {
           activeConfig = { ...localAppSettings, ...snap.data() };
         }
       } catch (e) {
-        console.warn("Using fallback memory configs for initiation:", e);
+        console.error("An error occurred");
       }
 
       // Enforce Minimum and Maximum Deposit Limits
@@ -755,7 +755,7 @@ async function startServer() {
             return res.status(400).json({ success: false, message: `ZapUPI Gateway Error: ${errMsg}` });
           }
         } catch (zapErr: any) {
-          console.error("ZapUPI order creation failed:", zapErr);
+          console.error("An error occurred");
           return res.status(400).json({ success: false, message: `Failed to initiate payment with ZapUPI: ${zapErr.message}` });
         }
       }
@@ -1045,7 +1045,7 @@ async function startServer() {
         </html>
       `);
     } catch (err: any) {
-      console.error("Simulation completion error:", err);
+      console.error("An error occurred");
       res.status(500).send(`<h3>Simulation processing failed: ${err.message}</h3>`);
     }
   });
@@ -1097,7 +1097,7 @@ async function startServer() {
         return { success: false, status: "pending", raw: result };
       }
     } catch (err: any) {
-      console.error("ZapUPI status API query error:", err);
+      console.error("An error occurred");
       // Attempt alternative URL "https://api.zapupi.com/api/v1/status" in case the endpoint is slightly different
       try {
         const responseAlt = await fetch("https://api.zapupi.com/api/v1/status", {
@@ -1134,7 +1134,7 @@ async function startServer() {
           }
         }
       } catch (altErr) {
-        console.error("ZapUPI Alt Status API query error:", altErr);
+        console.error("An error occurred");
       }
       throw err;
     }
@@ -1200,7 +1200,7 @@ async function startServer() {
       }
       return true;
     } catch (err) {
-      console.error(`Error in finalizeTransaction for ${orderId}:`, err);
+      console.error("An error occurred");
       return false;
     }
   }
@@ -1329,7 +1329,7 @@ async function processTransactionSafe(orderId, isSuccess, method, amount) {
 
     return true;
   } catch (error) {
-    console.error("Error in safe transaction processing:", error);
+    console.error("An error occurred");
     return false;
   }
 }
@@ -1400,7 +1400,7 @@ async function processTransactionSafe(orderId, isSuccess, method, amount) {
 
       return res.json({ success: true, message: "Webhook processed successfully." });
     } catch (err: any) {
-      console.error("ZapUPI Webhook error:", err);
+      console.error("An error occurred");
       return res.status(500).json({ success: false, error: err.message });
     }
   });
@@ -1483,7 +1483,7 @@ async function processTransactionSafe(orderId, isSuccess, method, amount) {
         </html>
       `);
     } catch (err: any) {
-      console.error("ZapUPI Callback redirection error:", err);
+      console.error("An error occurred");
       return res.status(400).send("Payment failed. Please close this window.");
     }
   });
@@ -1790,7 +1790,7 @@ async function processTransactionSafe(orderId, isSuccess, method, amount) {
 
       res.json({ success: true, message: "Payment completed and wallet credited." });
     } catch (err: any) {
-      console.error("Payment complete error:", err);
+      console.error("An error occurred");
       res.status(500).json({ success: false, message: err.message });
     }
   });
@@ -1840,7 +1840,7 @@ async function processTransactionSafe(orderId, isSuccess, method, amount) {
 
       res.json({ success: true, message: "Payment cancelled successfully." });
     } catch (err: any) {
-      console.error("Payment cancel error:", err);
+      console.error("An error occurred");
       res.status(500).json({ success: false, message: err.message });
     }
   });
@@ -1908,7 +1908,7 @@ async function processTransactionSafe(orderId, isSuccess, method, amount) {
       }
       return res.json({ success: true, status: "pending" });
     } catch (error) {
-      console.error("Status check error:", error);
+      console.error("An error occurred");
       res.status(500).json({ success: false, message: error.message });
     }
   });

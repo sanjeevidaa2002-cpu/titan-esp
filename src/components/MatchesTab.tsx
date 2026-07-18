@@ -44,6 +44,7 @@ export const MatchesTab: React.FC<MatchesTabProps> = ({
   const [feeFilter, setFeeFilter] = useState<'all' | 'free' | 'paid'>('all');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [ffCategoryFilter, setFfCategoryFilter] = useState<'all' | 'BR' | 'CS'>('BR');
+  const [imgErrors, setImgErrors] = useState<Record<string, boolean>>({});
 
   // Handle manual override from initial filter prop
   React.useEffect(() => {
@@ -355,13 +356,13 @@ export const MatchesTab: React.FC<MatchesTabProps> = ({
             {categories?.filter(c => c.enabled !== false).map((cat) => {
               const isActive = selectedCategory === cat.id;
               
-              // Cache bust dynamic URLs
+              // Cache bust dynamic URLs smartly
               const getVersionedUrl = (url: string, updatedAt?: number) => {
                 if (!url) return '';
                 if (url.startsWith('data:')) return url;
                 const cleanUrl = url.split('?v=')[0].split('&v=')[0];
-                const version = updatedAt || Date.now();
-                return `${cleanUrl}${cleanUrl.includes('?') ? '&' : '?'}v=${version}`;
+                if (!updatedAt) return cleanUrl; // Don't break caching if no update timestamp
+                return `${cleanUrl}${cleanUrl.includes('?') ? '&' : '?'}v=${updatedAt}`;
               };
 
               const isCustomIconUrl = cat.icon?.startsWith('http') || cat.icon?.startsWith('data:image');
@@ -385,12 +386,13 @@ export const MatchesTab: React.FC<MatchesTabProps> = ({
                       <img src={cat.banner} alt="" className="w-full h-full object-cover" />
                     </div>
                   )}
-                  {isCustomIconUrl ? (
+                  {isCustomIconUrl && !imgErrors[cat.id] ? (
                     <img
                       src={iconUrl}
-                      alt={cat.name}
+                      alt=""
                       className="w-8 h-8 object-contain mb-1 relative z-10 group-hover:scale-110 transition-transform rounded"
                       referrerPolicy="no-referrer"
+                      onError={() => setImgErrors(prev => ({ ...prev, [cat.id]: true }))}
                     />
                   ) : (
                     <span className="text-xl mb-1 relative z-10 group-hover:scale-110 transition-transform">

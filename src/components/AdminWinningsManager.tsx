@@ -58,11 +58,11 @@ export const AdminWinningsManager: React.FC<{
           uid: doc.id,
           ...doc.data()
         } as any);
-      });
+      }, (err) => console.warn('Users sync error.'));
       setDbUsers(list);
       setLoadingUsers(false);
     }, (err) => {
-      console.warn("Could not retrieve users real-time stream in AdminWinningsManager:", err);
+      console.warn("Could not retrieve users real-time stream in AdminWinningsManager:");
       setLoadingUsers(false);
     });
     return () => unsub();
@@ -252,7 +252,7 @@ export const AdminWinningsManager: React.FC<{
       showToast(editingWinner ? "Tournament winner updated successfully! 🎉" : "New tournament winner registered! 🏆");
       setIsModalOpen(false);
     } catch (err) {
-      console.error(err);
+      console.error("An error occurred");
       alert("Failed to save winner!");
     } finally {
       setIsSaving(false);
@@ -266,7 +266,7 @@ export const AdminWinningsManager: React.FC<{
         await deleteWinnerAdmin(id);
         showToast("Winner record deleted successfully.");
       } catch (err) {
-        console.error(err);
+        console.error("An error occurred");
         alert("Failed to delete winner record.");
       }
     };

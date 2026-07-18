@@ -75,7 +75,9 @@ const CategoryCard: React.FC<CategoryCardProps> = ({
 
   const [isSaving, setIsSaving] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [isUploadingBanner, setIsUploadingBanner] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const bannerFileInputRef = useRef<HTMLInputElement>(null);
 
   // Check if anything has been modified but not saved yet
   const originalIconType = getIconFormat(category.icon || '');
@@ -91,6 +93,10 @@ const CategoryCard: React.FC<CategoryCardProps> = ({
   // Handler for uploading and auto-optimizing/resizing image file to base64 URL
   const handleUploadClick = () => {
     fileInputRef.current?.click();
+  };
+
+  const handleBannerUploadClick = () => {
+    bannerFileInputRef.current?.click();
   };
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -112,10 +118,35 @@ const CategoryCard: React.FC<CategoryCardProps> = ({
       setIconType('upload');
       triggerNotification("Icon Processed", "Custom icon compressed and loaded into live preview.", "info");
     } catch (err) {
-      console.error(err);
+      console.error("An error occurred");
       alert('Failed to optimize icon. Please try another image.');
     } finally {
       setIsUploading(false);
+    }
+  };
+
+  const handleBannerFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Allowed file extensions
+    const validTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp', 'image/svg+xml'];
+    if (!validTypes.includes(file.type)) {
+      alert('Supported formats: PNG, JPG, JPEG, WEBP, SVG.');
+      return;
+    }
+
+    setIsUploadingBanner(true);
+    try {
+      // Banners can be wider, max 800px width
+      const optimizedBase64 = await compressImage(file, 0.6, 800);
+      setBannerUrl(optimizedBase64);
+      triggerNotification("Banner Processed", "Custom banner compressed and loaded.", "info");
+    } catch (err) {
+      console.error("An error occurred");
+      alert('Failed to optimize banner. Please try another image.');
+    } finally {
+      setIsUploadingBanner(false);
     }
   };
 
@@ -173,7 +204,7 @@ const CategoryCard: React.FC<CategoryCardProps> = ({
       await onSave(updatedCategory);
       triggerNotification("Success", "Game Category Icon Updated Successfully.", "success" as any);
     } catch (err) {
-      console.error(err);
+      console.error("An error occurred");
       alert('Failed to save category configuration.');
     } finally {
       setIsSaving(false);
@@ -416,15 +447,62 @@ const CategoryCard: React.FC<CategoryCardProps> = ({
         {/* Custom Landscape Banner Setting */}
         <div className="space-y-1.5">
           <label className="text-[9px] font-black uppercase tracking-widest text-neutral-400 block">Category Banner Image (Optional)</label>
-          <div className="relative">
-            <ImageIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-neutral-500" />
-            <input
-              type="text"
-              value={bannerUrl}
-              onChange={e => setBannerUrl(e.target.value)}
-              placeholder="https://example.com/banners/freefire.jpg"
-              className="w-full bg-[#0a0a0f] border border-white/5 rounded-xl py-2 pl-9 pr-3 text-xs text-white placeholder-neutral-600 focus:outline-none focus:border-purple-500 transition-all font-mono font-semibold"
+          <div className="space-y-2">
+            <div className="relative">
+              <ImageIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-neutral-500" />
+              <input
+                type="text"
+                value={bannerUrl}
+                onChange={e => setBannerUrl(e.target.value)}
+                placeholder="https://example.com/banners/freefire.jpg"
+                className="w-full bg-[#0a0a0f] border border-white/5 rounded-xl py-2 pl-9 pr-3 text-xs text-white placeholder-neutral-600 focus:outline-none focus:border-purple-500 transition-all font-mono font-semibold"
+              />
+            </div>
+            
+            <input 
+              type="file" 
+              ref={bannerFileInputRef} 
+              onChange={handleBannerFileChange} 
+              accept="image/png, image/jpeg, image/webp, image/svg+xml" 
+              className="hidden" 
             />
+            <button
+              type="button"
+              onClick={handleBannerUploadClick}
+              disabled={isUploadingBanner}
+              className="w-full flex items-center justify-center gap-2 border border-dashed border-white/10 rounded-xl py-2 px-4 bg-[#111116] hover:bg-neutral-800 hover:border-purple-500/20 text-neutral-400 hover:text-white transition-all cursor-pointer text-xs font-black uppercase tracking-wider"
+            >
+              {isUploadingBanner ? (
+                <>
+                  <RefreshCw className="w-4 h-4 animate-spin text-purple-400" />
+                  <span>Compressing Banner...</span>
+                </>
+              ) : (
+                <>
+                  <Upload className="w-4 h-4 text-purple-400" />
+                  <span>Upload Banner Image</span>
+                </>
+              )}
+            </button>
+            
+            {bannerUrl && bannerUrl.startsWith('data:') && (
+              <div className="flex items-center justify-between bg-[#111116] p-2 rounded-xl border border-white/5 text-[9px] font-mono text-neutral-400">
+                <span className="truncate max-w-[70%]">base64_optimized_banner.webp</span>
+                <button 
+                  type="button" 
+                  onClick={() => setBannerUrl('')} 
+                  className="text-red-400 hover:text-red-300 hover:underline cursor-pointer"
+                >
+                  Remove
+                </button>
+              </div>
+            )}
+            
+            {bannerUrl && !bannerUrl.startsWith('data:') && (
+              <div className="rounded-xl overflow-hidden border border-white/10 opacity-75">
+                <img src={bannerUrl} alt="Banner Preview" className="w-full h-12 object-cover" />
+              </div>
+            )}
           </div>
         </div>
 
@@ -552,7 +630,7 @@ export const AdminCategoriesTab: React.FC<{ showConfirm?: (title: string, messag
       setIsAdding(false);
       triggerNotification("Success", "Game Category Icon Updated Successfully.", "success" as any);
     } catch (err) {
-      console.error(err);
+      console.error("An error occurred");
       alert('Failed to create game category.');
     }
   };

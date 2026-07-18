@@ -43,7 +43,7 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 
 function DashboardContent() {
-  const { currentUser, userProfile, tournaments, logout, notifications, brandingSettings } = useGame();
+  const { currentUser, userProfile, tournaments, logout, notifications, brandingSettings, notificationSettings } = useGame();
   
   const [showSplash, setShowSplash] = useState(true);
   const [activeTab, setActiveTab] = useState<string>('home');
@@ -113,7 +113,7 @@ function DashboardContent() {
 
   // Listen to incoming notifications and trigger a slide-down banner
   useEffect(() => {
-    if (notifications.length > 0) {
+    if (notifications.length > 0 && notificationSettings?.notificationsEnabled !== false) {
       const latest = notifications[0];
       if (!dismissedToasts.includes(latest.id)) {
         setActiveToast({
@@ -131,7 +131,7 @@ function DashboardContent() {
         return () => clearTimeout(timer);
       }
     }
-  }, [notifications, dismissedToasts]);
+  }, [notifications, dismissedToasts, notificationSettings]);
 
   // Handle URL callback parameters for automated payment gateways
   useEffect(() => {
@@ -229,7 +229,7 @@ function DashboardContent() {
       <div className="absolute bottom-0 right-1/4 w-[450px] h-[450px] bg-neon-purple/5 rounded-full blur-[140px] pointer-events-none z-0" />
 
       {/* Slide-down push notification banner */}
-      {activeToast ? (
+      {activeToast && notificationSettings?.notificationsEnabled !== false ? (
         <div className="fixed top-4 left-4 right-4 z-50 animate-[slide-down_0.3s_ease-out] flex justify-center pointer-events-none">
           <div className="glass-card-gold border-gold-500/30 p-4 rounded-2xl w-full max-w-md pointer-events-auto flex gap-3 shadow-2xl relative overflow-hidden">
             {/* Ambient flash glow */}

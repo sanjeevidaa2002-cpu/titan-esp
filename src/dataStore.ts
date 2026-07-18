@@ -867,3 +867,7 @@ export const SEED_WINNERS: any[] = [
   }
 ];
 
+
+export const DEFAULT_NOTIFICATION_SETTINGS = {
+  notificationsEnabled: true
+};

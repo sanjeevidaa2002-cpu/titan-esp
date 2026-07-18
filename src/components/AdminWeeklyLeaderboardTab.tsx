@@ -155,7 +155,7 @@ export const AdminWeeklyLeaderboardTab: React.FC<{ showConfirm?: (title: string,
           resetForm();
         }, 1500);
       } catch (err) {
-        console.error(err);
+        console.error("An error occurred");
         setIsSaving(false);
       }
     }, 2000);
@@ -182,7 +182,7 @@ export const AdminWeeklyLeaderboardTab: React.FC<{ showConfirm?: (title: string,
         alert('Weekly Leaderboard Config Updated Successfully.');
         setIsSaving(false);
       } catch (err) {
-        console.error(err);
+        console.error("An error occurred");
         setIsSaving(false);
       }
     }, 1500);

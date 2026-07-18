@@ -77,7 +77,7 @@ export const Auth: React.FC<{ initialMode?: 'login' | 'signup',  }> = ({ initial
         await loginWithCredentials(usernameOrMobile, password);
       }
     } catch (err: any) {
-      console.warn("Auth failed:", err);
+      console.warn("Auth failed:");
       
       const errorCode = err?.code || '';
       const errorMessage = err?.message || '';
@@ -100,20 +100,22 @@ export const Auth: React.FC<{ initialMode?: 'login' | 'signup',  }> = ({ initial
     try {
       await loginWithGoogle();
     } catch (err: any) {
-      // Direct login simulation so that users aren't locked out due to frame-constraints!
-      setLocalErr("OAuth popup blocked by iframe container. Logging into Demo Session instead.");
-      setTimeout(async () => {
-        try {
-          try {
-            await loginWithCredentials('DemoUser123', 'demo123');
-          } catch (loginErr) {
-            await registerWithCredentials('DemoUser123', '9876543210', 'demo123');
-            await loginWithCredentials('DemoUser123', 'demo123');
-          }
-        } catch (inner) {
-          // fallback
-        }
-      }, 1000);
+      console.error("Google Auth failed:");
+      let friendlyMessage = err?.message || "Google Authentication failed.";
+      
+      if (err?.code === 'auth/popup-closed-by-user') {
+        friendlyMessage = "Google Sign-In was cancelled. The window was closed before completion.";
+      } else if (err?.code === 'auth/unauthorized-domain' || friendlyMessage.includes('unauthorized-domain') || friendlyMessage.includes('authDomain')) {
+        friendlyMessage = "This domain is not authorized for Google Sign-In. Please add this domain to the Firebase Console Authorized Domains list.";
+      } else if (err?.code === 'auth/network-request-failed') {
+        friendlyMessage = "Network error. Please check your internet connection.";
+      } else if (err?.code === 'auth/invalid-oauth-client-id') {
+        friendlyMessage = "Invalid OAuth Client ID configuration in Firebase.";
+      } else if (err?.code === 'auth/popup-blocked') {
+        friendlyMessage = "Google sign-in popup was blocked by your browser. Please enable popups or try again.";
+      }
+      
+      setLocalErr(friendlyMessage);
     } finally {
       setLoading(false);
     }
