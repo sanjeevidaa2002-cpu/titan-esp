@@ -5,19 +5,25 @@
 
 import React, { useState, useEffect } from 'react';
 import { useGame } from '../context/GameContext';
-import { Upload, ImageIcon, Check, Loader2, Save, Trash2, RotateCcw } from 'lucide-react';
+import { Upload, ImageIcon, Check, Loader2, Save, Trash2, RotateCcw, X } from 'lucide-react';
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { storage } from '../firebase';
 import { LoadingScreenSettings } from '../types';
 import { TitanEsportsLogo } from './TitanEsportsLogo';
 
 export const LoadingPageManager: React.FC = () => {
-  const { loadingScreenSettings, updateLoadingScreenSettings } = useGame();
+  const { loadingScreenSettings, updateLoadingScreenSettings, currentUser } = useGame();
   
   const [localSettings, setLocalSettings] = useState<LoadingScreenSettings>(loadingScreenSettings);
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState<string | null>(null);
   const [imgError, setImgError] = useState(false);
+
+  // File Upload State Tracking
+  const [uploadStatus, setUploadStatus] = useState<'idle' | 'uploading' | 'success' | 'error'>('idle');
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
 
   useEffect(() => {
     setLocalSettings(loadingScreenSettings);
@@ -28,58 +34,156 @@ export const LoadingPageManager: React.FC = () => {
     setSaveSuccess(null);
   };
 
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const validateFile = (file: File): string | null => {
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/svg+xml'];
+    const allowedExtensions = ['.jpg', '.jpeg', '.png', '.webp', '.svg'];
 
+    // Check size limit: 10 MB
+    const maxSizeBytes = 10 * 1024 * 1024;
+    if (file.size > maxSizeBytes) {
+      return 'File Too Large (Maximum size allowed is 10MB)';
+    }
+
+    const fileType = file.type?.toLowerCase();
+    const fileName = file.name?.toLowerCase();
+    const hasValidType = allowedTypes.includes(fileType);
+    const hasValidExt = allowedExtensions.some(ext => fileName.endsWith(ext));
+
+    if (!hasValidType && !hasValidExt) {
+      return 'Invalid File Type (Supported formats: JPG, JPEG, PNG, WEBP, SVG)';
+    }
+
+    return null;
+  };
+
+  const processAndUploadFile = async (file: File) => {
+    setUploadStatus('idle');
+    setUploadError(null);
+    setUploadProgress(0);
+
+    const validationErr = validateFile(file);
+    if (validationErr) {
+      setUploadStatus('error');
+      setUploadError(validationErr);
+      return;
+    }
+
+    setUploadStatus('uploading');
     try {
+      // 1. Create a unique path in Firebase Storage
       const storageRef = ref(storage, `loading_screens/${Date.now()}_${file.name}`);
       const uploadTask = uploadBytesResumable(storageRef, file);
 
       uploadTask.on('state_changed',
-        null,
+        (snapshot) => {
+          const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+          setUploadProgress(Math.round(progress));
+        },
         (error) => {
-          console.error("Upload failed:", error);
-          alert("Upload failed: " + error.message);
+          console.error("Storage Error during upload:", error);
+          setUploadStatus('error');
+          setUploadError(`Storage Error: ${error.message}`);
         },
         async () => {
-          const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
-          setLocalSettings(prev => ({
-            ...prev,
-            loadingLogoUrl: downloadURL,
-            uploadedLogoUrl: downloadURL,
-            loadingLogoType: 'upload',
-            loadingLogoSource: 'upload'
-          }));
-          setImgError(false);
-          setSaveSuccess(null);
+          try {
+            const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+            
+            // Implement cache busting
+            const timestamp = Date.now();
+            const cacheBustedUrl = `${downloadURL}${downloadURL.includes('?') ? '&' : '?'}v=${timestamp}`;
+
+            // Create updated settings
+            const updatedSettings: LoadingScreenSettings = {
+              ...localSettings,
+              loadingLogoUrl: cacheBustedUrl,
+              loadingImageUrl: cacheBustedUrl,
+              uploadedLogoUrl: cacheBustedUrl,
+              loadingLogoType: 'upload',
+              loadingLogoSource: 'upload',
+              updatedAt: timestamp,
+              updatedBy: currentUser?.email || 'titangaming4m@gmail.com'
+            };
+
+            // Instant DB Update
+            await updateLoadingScreenSettings(updatedSettings);
+
+            // Update local states
+            setLocalSettings(updatedSettings);
+            setImgError(false);
+            setUploadStatus('success');
+            setSaveSuccess("Upload Successful & Loading Screen Updated!");
+            setTimeout(() => {
+              setSaveSuccess(null);
+              setUploadStatus('idle');
+            }, 4000);
+          } catch (dbError: any) {
+            console.error("Database Update Error:", dbError);
+            setUploadStatus('error');
+            setUploadError(`Database Update Error: ${dbError.message}`);
+          }
         }
       );
     } catch (err: any) {
       console.error("Upload error:", err);
-      alert("Upload error.");
+      setUploadStatus('error');
+      setUploadError(`Upload Failed: ${err.message || err}`);
+    }
+  };
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    await processAndUploadFile(file);
+    e.target.value = '';
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = () => {
+    setIsDragging(false);
+  };
+
+  const handleDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) {
+      await processAndUploadFile(file);
     }
   };
 
   const handleUrlChange = (val: string) => {
+    const timestamp = Date.now();
+    const cacheBustedUrl = val ? `${val}${val.includes('?') ? '&' : '?'}v=${timestamp}` : '';
+    
     setLocalSettings(prev => ({
       ...prev,
-      loadingLogoUrl: val,
+      loadingLogoUrl: cacheBustedUrl,
+      loadingImageUrl: cacheBustedUrl,
       directLogoUrl: val,
-      loadingLogoType: val ? 'url' : 'default'
+      loadingLogoType: val ? 'url' : 'default',
+      updatedAt: timestamp,
+      updatedBy: currentUser?.email || 'titangaming4m@gmail.com'
     }));
     setImgError(false);
     setSaveSuccess(null);
   };
 
   const handleRemoveLogo = () => {
+    const timestamp = Date.now();
     setLocalSettings(prev => ({
       ...prev,
       loadingLogoUrl: '',
+      loadingImageUrl: '',
       uploadedLogoUrl: '',
       directLogoUrl: '',
       loadingLogoType: 'default',
-      loadingLogoSource: 'url'
+      loadingLogoSource: 'url',
+      updatedAt: timestamp,
+      updatedBy: currentUser?.email || 'titangaming4m@gmail.com'
     }));
     setImgError(false);
     setSaveSuccess(null);
@@ -88,6 +192,7 @@ export const LoadingPageManager: React.FC = () => {
   const handleResetToDefaults = () => {
     const DEFAULT_LOADING_SCREEN: LoadingScreenSettings = {
       loadingLogoUrl: '',
+      loadingImageUrl: '',
       loadingLogoSource: 'url',
       loadingTitle: 'TITAN ESPORTS',
       loadingSubtitle: 'PREMIUM GAMING',
@@ -98,7 +203,9 @@ export const LoadingPageManager: React.FC = () => {
       animationEnabled: true,
       uploadedLogoUrl: '',
       directLogoUrl: '',
-      loadingLogoType: 'default'
+      loadingLogoType: 'default',
+      updatedAt: Date.now(),
+      updatedBy: currentUser?.email || 'titangaming4m@gmail.com'
     };
     setLocalSettings(DEFAULT_LOADING_SCREEN);
     setImgError(false);
@@ -109,7 +216,19 @@ export const LoadingPageManager: React.FC = () => {
     setIsSaving(true);
     setSaveSuccess(null);
     try {
-      await updateLoadingScreenSettings(localSettings);
+      const timestamp = Date.now();
+      const settingsToSave = {
+        ...localSettings,
+        updatedAt: timestamp,
+        updatedBy: currentUser?.email || 'titangaming4m@gmail.com'
+      };
+      
+      // Ensure loadingImageUrl mirrors active logo URL
+      if (settingsToSave.loadingLogoUrl) {
+        settingsToSave.loadingImageUrl = settingsToSave.loadingLogoUrl;
+      }
+      
+      await updateLoadingScreenSettings(settingsToSave);
       setSaveSuccess("Loading Screen Updated Successfully.");
       setTimeout(() => setSaveSuccess(null), 3000);
     } catch (error: any) {
@@ -123,12 +242,12 @@ export const LoadingPageManager: React.FC = () => {
   const getPreviewLogoUrl = () => {
     if (localSettings.loadingLogoType === 'default') return '';
     if (localSettings.loadingLogoType === 'upload') {
-      return localSettings.uploadedLogoUrl || localSettings.loadingLogoUrl || '';
+      return localSettings.uploadedLogoUrl || localSettings.loadingImageUrl || localSettings.loadingLogoUrl || '';
     }
     if (localSettings.loadingLogoType === 'url') {
-      return localSettings.directLogoUrl || localSettings.loadingLogoUrl || '';
+      return localSettings.directLogoUrl || localSettings.loadingImageUrl || localSettings.loadingLogoUrl || '';
     }
-    return localSettings.loadingLogoUrl || '';
+    return localSettings.loadingImageUrl || localSettings.loadingLogoUrl || '';
   };
 
   const currentImageUrl = getPreviewLogoUrl();
@@ -212,18 +331,66 @@ export const LoadingPageManager: React.FC = () => {
             </div>
 
             {localSettings.loadingLogoSource === 'upload' ? (
-              <div className="space-y-2">
-                <label className="flex items-center justify-center w-full h-24 bg-[#111116] border border-dashed border-white/20 rounded-xl cursor-pointer hover:border-gold-500/50 transition-colors">
-                  <div className="flex flex-col items-center">
-                    <Upload className="w-6 h-6 text-neutral-400 mb-2" />
-                    <span className="text-xs text-neutral-300">Click to upload Logo</span>
+              <div className="space-y-3">
+                <div
+                  onDragOver={handleDragOver}
+                  onDragLeave={handleDragLeave}
+                  onDrop={handleDrop}
+                  className={`relative flex flex-col items-center justify-center w-full h-32 rounded-xl border border-dashed cursor-pointer transition-all ${
+                    isDragging 
+                      ? 'border-gold-500 bg-gold-500/5 shadow-[0_0_15px_rgba(229,169,25,0.15)]' 
+                      : 'border-white/20 bg-[#111116] hover:border-gold-500/40 hover:bg-white/5'
+                  }`}
+                >
+                  <label className="w-full h-full flex flex-col items-center justify-center cursor-pointer">
+                    <Upload className={`w-7 h-7 mb-2 transition-transform ${isDragging ? 'scale-110 text-gold-400' : 'text-neutral-400'}`} />
+                    <span className="text-xs text-neutral-300 font-bold">
+                      {isDragging ? 'Drop to Upload' : 'Click or Drag & Drop to Upload'}
+                    </span>
+                    <span className="text-[10px] text-neutral-500 mt-1">
+                      JPG, JPEG, PNG, WEBP, SVG (Max 10MB)
+                    </span>
+                    <input type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
+                  </label>
+                </div>
+
+                {/* Upload Status Messages */}
+                {uploadStatus === 'uploading' && (
+                  <div className="bg-[#111116] border border-white/5 rounded-xl p-3 space-y-2">
+                    <div className="flex justify-between items-center text-xs">
+                      <span className="text-amber-400 font-bold flex items-center gap-1.5">
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        Uploading...
+                      </span>
+                      <span className="text-neutral-400 font-mono text-[11px]">{uploadProgress}%</span>
+                    </div>
+                    <div className="w-full bg-neutral-800 rounded-full h-1.5 overflow-hidden">
+                      <div className="bg-gold-500 h-1.5 rounded-full transition-all duration-300" style={{ width: `${uploadProgress}%` }}></div>
+                    </div>
                   </div>
-                  <input type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
-                </label>
+                )}
+
+                {uploadStatus === 'success' && (
+                  <div className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 p-3 rounded-xl flex items-center gap-2 text-xs font-semibold animate-fade-in">
+                    <Check className="w-4 h-4 flex-shrink-0 bg-emerald-500/20 p-0.5 rounded-full" />
+                    <span>Upload Successful! Image saved to database.</span>
+                  </div>
+                )}
+
+                {uploadStatus === 'error' && (
+                  <div className="bg-red-500/10 border border-red-500/20 text-red-400 p-3 rounded-xl flex items-start gap-2 text-xs font-semibold animate-fade-in">
+                    <X className="w-4 h-4 flex-shrink-0 bg-red-500/20 p-0.5 rounded-full mt-0.5" />
+                    <div className="flex-1">
+                      <span className="block font-bold">Upload Failed</span>
+                      <span className="text-[11px] text-red-400/80 mt-0.5 block">{uploadError}</span>
+                    </div>
+                  </div>
+                )}
+
                 {localSettings.uploadedLogoUrl && (
-                  <div className="text-[10px] text-emerald-400 flex items-center gap-1 font-mono break-all bg-emerald-500/5 border border-emerald-500/10 p-2 rounded-lg">
-                    <Check className="w-3 h-3 flex-shrink-0" />
-                    Uploaded: {localSettings.uploadedLogoUrl}
+                  <div className="text-[10px] text-emerald-400 flex items-center gap-1.5 font-mono break-all bg-emerald-500/5 border border-emerald-500/10 p-2.5 rounded-lg">
+                    <Check className="w-3.5 h-3.5 flex-shrink-0" />
+                    <span>Active URL: {localSettings.uploadedLogoUrl}</span>
                   </div>
                 )}
               </div>

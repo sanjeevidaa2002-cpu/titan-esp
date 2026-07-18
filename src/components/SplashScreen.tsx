@@ -29,22 +29,24 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ onFinished }) => {
     const uploaded = loadingScreenSettings?.uploadedLogoUrl || '';
     const direct = loadingScreenSettings?.directLogoUrl || '';
     const legacy = loadingScreenSettings?.loadingLogoUrl || '';
+    const loadingImg = loadingScreenSettings?.loadingImageUrl || '';
 
     if (type === 'upload') {
       return [
-        uploaded || legacy,
+        uploaded || loadingImg || legacy,
         direct,
         'default'
       ].filter(Boolean);
     } else if (type === 'url') {
       return [
-        direct || legacy,
+        direct || loadingImg || legacy,
         uploaded,
         'default'
       ].filter(Boolean);
     } else {
-      if (legacy) {
-        return [legacy, 'default'];
+      const activeUrl = loadingImg || legacy || uploaded;
+      if (activeUrl) {
+        return [activeUrl, 'default'];
       }
       return ['default'];
     }

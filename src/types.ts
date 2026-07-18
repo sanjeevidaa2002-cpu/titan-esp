@@ -455,4 +455,6 @@ export interface LoadingScreenSettings {
   uploadedLogoUrl?: string;
   directLogoUrl?: string;
   loadingLogoType?: 'upload' | 'url' | 'default';
+  loadingImageUrl?: string;
+  updatedBy?: string;
 }
