@@ -493,7 +493,7 @@ const CategoryCard: React.FC<CategoryCardProps> = ({
 
 
 // Main Component
-export const AdminCategoriesTab: React.FC = () => {
+export const AdminCategoriesTab: React.FC<{ showConfirm?: (title: string, message: string, onConfirm: () => void | Promise<void>) => void }> = ({ showConfirm }) => {
   const { categories, saveCategoryAdmin, deleteCategoryAdmin, triggerNotification } = useGame();
   
   // Create New Category drawer state
@@ -561,9 +561,19 @@ export const AdminCategoriesTab: React.FC = () => {
       return;
     }
 
-    if (window.confirm('Are you sure you want to permanently delete this game category? This action cannot be undone.')) {
+    const performDelete = () => {
       deleteCategoryAdmin(id);
       triggerNotification("Deleted", "Category permanently deleted.", "alert");
+    };
+
+    if (showConfirm) {
+      showConfirm(
+        "Confirm Deletion",
+        "Are you sure you want to permanently delete this game category? This action cannot be undone.",
+        performDelete
+      );
+    } else if (window.confirm('Are you sure you want to permanently delete this game category? This action cannot be undone.')) {
+      performDelete();
     }
   };
 

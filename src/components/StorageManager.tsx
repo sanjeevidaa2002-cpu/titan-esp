@@ -43,7 +43,7 @@ interface ConfigurationLog {
   details: string;
 }
 
-export const StorageManager: React.FC = () => {
+export const StorageManager: React.FC<{ showConfirm?: (title: string, message: string, onConfirm: () => void | Promise<void>) => void }> = ({ showConfirm }) => {
   const { 
     storageFiles, 
     storageSettings, 
@@ -514,7 +514,7 @@ export const StorageManager: React.FC = () => {
 
   // Delete file action
   const handleDeleteFile = async (id: string, fileName: string) => {
-    if (confirm(`Are you sure you want to delete "${fileName}"? This will permanently remove the record.`)) {
+    const performDelete = async () => {
       try {
         await deleteStorageFileAdmin(id);
         triggerNotification("Deleted", `Removed "${fileName}" from media library.`, "info" as any);
@@ -522,6 +522,16 @@ export const StorageManager: React.FC = () => {
       } catch (err: any) {
         triggerNotification("Error", "Deletion failed: " + err.message, "alert" as any);
       }
+    };
+
+    if (showConfirm) {
+      showConfirm(
+        "Confirm Deletion",
+        `Are you sure you want to permanently delete "${fileName}"? This will permanently remove the record.`,
+        performDelete
+      );
+    } else if (confirm(`Are you sure you want to delete "${fileName}"? This will permanently remove the record.`)) {
+      await performDelete();
     }
   };
 

@@ -40,10 +40,10 @@ export const MatchesTab: React.FC<MatchesTabProps> = ({
   
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'live' | 'open' | 'completed' | 'my_matches'>(initialFilter || 'all');
-  const [modeFilter, setModeFilter] = useState<'all' | 'Solo' | 'Duo' | 'Squad'>('all');
   const [feeFilter, setFeeFilter] = useState<'all' | 'free' | 'paid'>('all');
-  const [selectedCategory, setSelectedCategory] = useState<string>('all');
-  const [ffCategoryFilter, setFfCategoryFilter] = useState<'all' | 'BR' | 'CS'>('BR');
+  const [selectedGame, setSelectedGame] = useState<'Free Fire' | 'PUBG Mobile' | 'Hacker Match'>('Free Fire');
+  const [selectedCategory, setSelectedCategory] = useState<'BR' | 'CS'>('BR');
+  const [selectedMatchType, setSelectedMatchType] = useState<'Solo' | 'Duo' | 'Squad'>('Solo');
 
   // Handle manual override from initial filter prop
   React.useEffect(() => {
@@ -81,50 +81,24 @@ export const MatchesTab: React.FC<MatchesTabProps> = ({
       matchesStatus = t.roomStatus === 'completed';
     }
 
-    // Mode
-    const matchesMode = modeFilter === 'all' || t.mode === modeFilter;
-
     // Fee
     const matchesFee = feeFilter === 'all' || 
       (feeFilter === 'free' && t.isFreeMatch) || 
       (feeFilter === 'paid' && !t.isFreeMatch);
 
-    // Category Filter
-    let matchesCategory = true;
-    let isFreeFire = false;
-    if (selectedCategory !== 'all') {
-      const activeCat = categories?.find(c => c.id === selectedCategory);
-      if (activeCat) {
-        const catNameLower = activeCat.name.toLowerCase();
-        if (catNameLower.includes('free fire') || activeCat.id === 'free_fire') {
-            isFreeFire = true;
-        }
-        if (catNameLower.includes('free tournament') || activeCat.id === 'free_tournaments') {
-          // Display tournaments from ALL games where Entry Fee = 0
-          matchesCategory = (t.entryFee === 0 || t.isFreeMatch);
-        } else {
-          // Match specific game category
-          const tournamentCategory = t.gameCategory || 'free_fire';
-          matchesCategory = (tournamentCategory.toLowerCase() === activeCat.id.toLowerCase() || 
-                             tournamentCategory.toLowerCase() === activeCat.name.toLowerCase() ||
-                             (activeCat.id === 'free_fire' && !t.gameCategory)); // fallback for old tournaments
-        }
-      }
-    } else {
-       // if all is selected, we might want to check if it's FF to apply FF filters, but usually if 'all' is selected we show everything.
-    }
+    // 1. Game Filter
+    const tGame = t.gameName || (t.gameCategory === 'pubg_mobile' ? 'PUBG Mobile' : t.gameCategory === 'hacker_match' ? 'Hacker Match' : 'Free Fire');
+    const matchesGame = tGame === selectedGame;
 
-    let matchesFfCategory = true;
-    if (matchesCategory && (isFreeFire || selectedCategory === 'all')) {
-        // Only apply if it's actually a Free Fire tournament
-        const isActuallyFf = (t.gameCategory || 'free_fire').toLowerCase().includes('free fire') || (t.gameCategory || 'free_fire').toLowerCase() === 'free_fire';
-        if (isActuallyFf && ffCategoryFilter !== 'all') {
-            // t.matchCategory should match ffCategoryFilter
-            matchesFfCategory = (t.matchCategory === ffCategoryFilter) || (!t.matchCategory && ffCategoryFilter === 'BR'); // Default old to BR
-        }
-    }
+    // 2. Category Filter
+    const tCategory = t.category || t.matchCategory || 'BR';
+    const matchesCategory = tCategory === selectedCategory;
 
-    return matchesSearch && matchesStatus && matchesMode && matchesFee && matchesCategory && matchesFfCategory;
+    // 3. Match Type Filter
+    const tMatchType = t.matchType || t.mode || 'Solo';
+    const matchesMatchType = tMatchType === selectedMatchType;
+
+    return matchesSearch && matchesStatus && matchesFee && matchesGame && matchesCategory && matchesMatchType;
   });
 
   if (statusFilter === 'my_matches') {
@@ -331,60 +305,35 @@ export const MatchesTab: React.FC<MatchesTabProps> = ({
           />
         </div>
 
-        {/* Game Categories */}
-        <div id="game_categories_section" className="space-y-3 pt-2">
+        {/* Game Selection (Level 1) */}
+        <div id="game_categories_section" className="space-y-2.5 pt-2">
           <h3 className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest flex items-center gap-1.5">
             <span className="text-purple-500">❖</span>
-            <span>Game Categories</span>
+            <span>Select Game</span>
           </h3>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-            {categories?.filter(c => c.enabled !== false).map((cat) => {
-              const isActive = selectedCategory === cat.id;
-              
-              // Cache bust dynamic URLs
-              const getVersionedUrl = (url: string, updatedAt?: number) => {
-                if (!url) return '';
-                if (url.startsWith('data:')) return url;
-                const cleanUrl = url.split('?v=')[0].split('&v=')[0];
-                const version = updatedAt || Date.now();
-                return `${cleanUrl}${cleanUrl.includes('?') ? '&' : '?'}v=${version}`;
-              };
-
-              const isCustomIconUrl = cat.icon?.startsWith('http') || cat.icon?.startsWith('data:image');
-              const iconUrl = isCustomIconUrl ? getVersionedUrl(cat.icon!, cat.updatedAt) : '';
-              const isCustomEmoji = cat.icon && !isCustomIconUrl && cat.icon.trim().length > 0;
-              const defaultIconEmoji = getCategoryIcon(cat.id, cat.name);
-
+          <div className="grid grid-cols-3 gap-2">
+            {[
+              { id: 'Free Fire', name: 'Free Fire', icon: '🔥', iconColor: 'text-orange-500' },
+              { id: 'PUBG Mobile', name: 'PUBG Mobile', icon: '🎯', iconColor: 'text-red-500' },
+              { id: 'Hacker Match', name: 'Hacker Match', icon: '🛡️', iconColor: 'text-emerald-500' },
+            ].map((game) => {
+              const isActive = selectedGame === game.id;
               return (
                 <button
-                  key={cat.id}
-                  id={`category_tab_${cat.id}`}
-                  onClick={() => setSelectedCategory(isActive ? 'all' : cat.id)}
-                  className={`relative overflow-hidden flex flex-col items-center justify-center p-3 rounded-xl border transition-all duration-300 group cursor-pointer ${
+                  key={game.id}
+                  id={`game_tab_${game.id.replace(/\s+/g, '_')}`}
+                  onClick={() => setSelectedGame(game.id as any)}
+                  className={`relative overflow-hidden flex flex-col items-center justify-center py-3.5 px-2 rounded-2xl border transition-all duration-300 group cursor-pointer ${
                     isActive
-                      ? 'bg-gradient-to-b from-[#1c1236] to-[#0d071a] border-purple-500/80 shadow-[0_0_15px_rgba(168,85,247,0.3)]'
-                      : 'bg-[#111116] border-white/5 hover:border-purple-500/20 hover:bg-[#15151c]'
+                      ? 'bg-gradient-to-b from-[#1c1236] to-[#0d071a] border-purple-500/80 shadow-[0_0_15px_rgba(168,85,247,0.3)] font-black text-white'
+                      : 'bg-[#111116] border-white/5 hover:border-purple-500/20 hover:bg-[#15151c] text-neutral-400 hover:text-neutral-200'
                   }`}
                 >
-                  {cat.banner && (
-                    <div className="absolute inset-0 opacity-10 group-hover:opacity-20 transition-opacity">
-                      <img src={cat.banner} alt="" className="w-full h-full object-cover" />
-                    </div>
-                  )}
-                  {isCustomIconUrl ? (
-                    <img
-                      src={iconUrl}
-                      alt={cat.name}
-                      className="w-8 h-8 object-contain mb-1 relative z-10 group-hover:scale-110 transition-transform rounded"
-                      referrerPolicy="no-referrer"
-                    />
-                  ) : (
-                    <span className="text-xl mb-1 relative z-10 group-hover:scale-110 transition-transform">
-                      {isCustomEmoji ? cat.icon : defaultIconEmoji}
-                    </span>
-                  )}
-                  <span className={`text-[9px] font-black uppercase tracking-wider text-center relative z-10 ${isActive ? 'text-purple-300' : 'text-neutral-400 group-hover:text-neutral-200'}`}>
-                    {cat.name}
+                  <span className={`text-xl mb-1 transition-transform group-hover:scale-110 ${game.iconColor}`}>
+                    {game.icon}
+                  </span>
+                  <span className="text-[9px] font-black uppercase tracking-wider text-center">
+                    {game.name}
                   </span>
                   {isActive && (
                     <div className="absolute bottom-0 inset-x-3 h-[2px] bg-gradient-to-r from-purple-500 via-gold-400 to-purple-500" />
@@ -395,75 +344,72 @@ export const MatchesTab: React.FC<MatchesTabProps> = ({
           </div>
         </div>
 
-        {/* Status Pills */}
-        <div className="flex bg-[#111116] p-1 rounded-xl border border-white/5 overflow-x-auto gap-1">
-          <button 
-            onClick={() => handleStatusChange('open')}
-            className={`flex-1 py-2 px-3 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all shrink-0 ${statusFilter === 'open' || statusFilter === 'all' ? 'bg-gradient-to-r from-gold-500 to-amber-600 text-neutral-950 shadow' : 'text-neutral-400 hover:text-white'}`}
-          >
-            New Updates
-          </button>
-          <button 
-            onClick={() => handleStatusChange('my_matches')}
-            className={`flex-1 py-2 px-3 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all shrink-0 ${statusFilter === 'my_matches' ? 'bg-green-600 text-white shadow' : 'text-neutral-400 hover:text-green-400'}`}
-          >
-            🟢 Joined
-          </button>
-          <button 
-            onClick={() => handleStatusChange('completed')}
-            className={`flex-1 py-2 px-3 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all shrink-0 ${statusFilter === 'completed' ? 'bg-purple-600 text-white shadow' : 'text-neutral-400 hover:text-purple-400'}`}
-          >
-            Completed
-          </button>
+        {/* Category (Level 2) and Match Type (Level 3) Row */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {/* Category Selector (BR vs CS) */}
+          <div id="category_selector_section" className="space-y-2">
+            <h3 className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest flex items-center gap-1.5">
+              <span className="text-purple-500">❖</span>
+              <span>Category</span>
+            </h3>
+            <div className="flex bg-[#111116] p-1 rounded-xl border border-white/5 gap-1">
+              <button 
+                onClick={() => setSelectedCategory('BR')}
+                className={`flex-1 py-2 px-3 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all ${selectedCategory === 'BR' ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow' : 'text-neutral-400 hover:text-white'}`}
+              >
+                🎮 Battle Royale (BR)
+              </button>
+              <button 
+                onClick={() => setSelectedCategory('CS')}
+                className={`flex-1 py-2 px-3 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all ${selectedCategory === 'CS' ? 'bg-gradient-to-r from-orange-600 to-red-600 text-white shadow' : 'text-neutral-400 hover:text-white'}`}
+              >
+                ⚔️ Clash Squad (CS)
+              </button>
+            </div>
+          </div>
+
+          {/* Match Type Selector (Solo, Duo, Squad) */}
+          <div id="match_type_selector_section" className="space-y-2">
+            <h3 className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest flex items-center gap-1.5">
+              <span className="text-purple-500">❖</span>
+              <span>Match Type</span>
+            </h3>
+            <div className="flex bg-[#111116] p-1 rounded-xl border border-white/5 gap-1">
+              {['Solo', 'Duo', 'Squad'].map((type) => (
+                <button 
+                  key={type}
+                  onClick={() => setSelectedMatchType(type as any)}
+                  className={`flex-1 py-2 px-3 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all ${selectedMatchType === type ? 'bg-gradient-to-r from-purple-600 to-fuchsia-600 text-white shadow' : 'text-neutral-400 hover:text-white'}`}
+                >
+                  {type === 'Solo' ? '👤 ' : type === 'Duo' ? '👥 ' : '👨‍👩‍👦‍👦 '} {type}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
 
-        {/* FF Category Selector */
-        (() => {
-          const activeCat = categories?.find(c => c.id === selectedCategory);
-          const isFreeFire = selectedCategory === 'all' || (activeCat && (activeCat.name.toLowerCase().includes('free fire') || activeCat.id === 'free_fire'));
-          
-          if (isFreeFire) {
-            return (
-              <div className="flex bg-[#111116] p-1 rounded-xl border border-white/5 overflow-x-auto gap-1 mb-2">
-                <button 
-                  onClick={() => setFfCategoryFilter('all')}
-                  className={`flex-1 py-2 px-3 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all shrink-0 ${ffCategoryFilter === 'all' ? 'bg-white/10 text-white shadow' : 'text-neutral-400 hover:text-white'}`}
-                >
-                  All FF
-                </button>
-                <button 
-                  onClick={() => setFfCategoryFilter('BR')}
-                  className={`flex-1 py-2 px-3 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all shrink-0 ${ffCategoryFilter === 'BR' ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow' : 'text-neutral-400 hover:text-white'}`}
-                >
-                  🎮 Battle Royale (BR)
-                </button>
-                <button 
-                  onClick={() => setFfCategoryFilter('CS')}
-                  className={`flex-1 py-2 px-3 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all shrink-0 ${ffCategoryFilter === 'CS' ? 'bg-gradient-to-r from-orange-600 to-red-600 text-white shadow' : 'text-neutral-400 hover:text-white'}`}
-                >
-                  ⚔️ Clash Squad (CS)
-                </button>
-              </div>
-            );
-          }
-          return null;
-        })()}
-
-        {/* Dropdown Filters (Mode & Fee) */}
-        <div className="grid grid-cols-2 gap-3">
-          {/* Mode Selector */}
-          <div className="flex items-center bg-[#111116] border border-white/5 rounded-xl px-3 py-1.5">
-            <Users className="w-3.5 h-3.5 text-neutral-500 mr-2 shrink-0" />
-            <select 
-              value={modeFilter} 
-              onChange={e => setModeFilter(e.target.value as any)}
-              className="bg-transparent text-xs text-neutral-300 w-full focus:outline-none cursor-pointer"
+        {/* Status Pills and Fee Selector Row */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          {/* Status Pills */}
+          <div className="sm:col-span-2 flex bg-[#111116] p-1 rounded-xl border border-white/5 overflow-x-auto gap-1">
+            <button 
+              onClick={() => handleStatusChange('open')}
+              className={`flex-1 py-2 px-3 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all shrink-0 ${statusFilter === 'open' || statusFilter === 'all' ? 'bg-gradient-to-r from-gold-500 to-amber-600 text-neutral-950 shadow' : 'text-neutral-400 hover:text-white'}`}
             >
-              <option value="all" className="bg-[#111116] text-white">All Modes</option>
-              <option value="Solo" className="bg-[#111116] text-white">Solo</option>
-              <option value="Duo" className="bg-[#111116] text-white">Duo</option>
-              <option value="Squad" className="bg-[#111116] text-white">Squad</option>
-            </select>
+              New Updates
+            </button>
+            <button 
+              onClick={() => handleStatusChange('my_matches')}
+              className={`flex-1 py-2 px-3 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all shrink-0 ${statusFilter === 'my_matches' ? 'bg-green-600 text-white shadow' : 'text-neutral-400 hover:text-green-400'}`}
+            >
+              🟢 Joined
+            </button>
+            <button 
+              onClick={() => handleStatusChange('completed')}
+              className={`flex-1 py-2 px-3 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all shrink-0 ${statusFilter === 'completed' ? 'bg-purple-600 text-white shadow' : 'text-neutral-400 hover:text-purple-400'}`}
+            >
+              Completed
+            </button>
           </div>
 
           {/* Fee Selector */}
@@ -489,8 +435,8 @@ export const MatchesTab: React.FC<MatchesTabProps> = ({
             <HelpCircle className="w-10 h-10 text-neutral-600 mx-auto" />
             <p className="text-xs text-neutral-400">No tournaments match your filter criteria.</p>
             <button 
-              onClick={() => { setSearchTerm(''); setStatusFilter('all'); setModeFilter('all'); setFeeFilter('all'); }}
-              className="text-xs text-gold-400 font-semibold underline"
+              onClick={() => { setSearchTerm(''); setStatusFilter('all'); setFeeFilter('all'); setSelectedGame('Free Fire'); setSelectedCategory('BR'); setSelectedMatchType('Solo'); }}
+              className="text-xs text-gold-400 font-semibold underline cursor-pointer"
             >
               Clear All Filters
             </button>

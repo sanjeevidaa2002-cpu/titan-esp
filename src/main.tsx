@@ -6,11 +6,12 @@ import './index.css';
 // Prevent benign HMR WebSocket errors from bubbling up and triggering unhandled rejection overlays in AI Studio
 if (typeof window !== 'undefined') {
   window.addEventListener('unhandledrejection', (event) => {
-    const message = event.reason?.message || '';
+    const reasonStr = String(event.reason?.message || event.reason || '');
     if (
-      message.includes('WebSocket') || 
-      message.includes('websocket') || 
-      message.includes('WebSocket closed')
+      reasonStr.includes('WebSocket') || 
+      reasonStr.includes('websocket') || 
+      reasonStr.includes('WebSocket closed') ||
+      reasonStr.includes('without opened')
     ) {
       event.preventDefault();
       event.stopPropagation();
@@ -18,11 +19,12 @@ if (typeof window !== 'undefined') {
   });
 
   window.addEventListener('error', (event) => {
-    const message = event.message || '';
+    const message = String(event.message || event.error?.message || event.error || '');
     if (
       message.includes('WebSocket') || 
       message.includes('websocket') || 
-      message.includes('WebSocket closed')
+      message.includes('WebSocket closed') ||
+      message.includes('without opened')
     ) {
       event.preventDefault();
       event.stopPropagation();

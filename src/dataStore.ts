@@ -549,6 +549,21 @@ export const DEFAULT_SUPPORT_SETTINGS: import('./types').SupportSettings = {
   updatedAt: Date.now()
 };
 
+export const DEFAULT_CONTACT_WIDGET_SETTINGS: import('./types').ContactWidgetSettings = {
+  whatsappIconUrl: '',
+  telegramIconUrl: '',
+  whatsappLink: 'https://wa.me/1234567890',
+  telegramLink: 'https://t.me/yourusername',
+  widgetEnabled: true,
+  iconSize: 'medium',
+  iconPosition: 'bottom-right',
+  updatedAt: Date.now(),
+  whatsappUploadedUrl: '',
+  whatsappDirectUrl: '',
+  telegramUploadedUrl: '',
+  telegramDirectUrl: ''
+};
+
 export const DEFAULT_WEEKLY_LEADERBOARD_CONFIG: import('./types').WeeklyLeaderboardConfig = {
   rankingCriteria: 'weeklyPoints',
   autoRankingEnabled: true

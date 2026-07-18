@@ -45,6 +45,7 @@ import {
   PlayerRegistration,
   BrandingSettings, LoadingScreenSettings,
   SupportSettings,
+  ContactWidgetSettings,
   GameCategory,
   WeeklyPlayer,
   WeeklyLeaderboardConfig,
@@ -60,6 +61,7 @@ import {
   FF_AVATARS,
   DEFAULT_BRANDING,
   DEFAULT_SUPPORT_SETTINGS,
+  DEFAULT_CONTACT_WIDGET_SETTINGS,
   DEFAULT_CATEGORIES,
   DEFAULT_WEEKLY_LEADERBOARD_CONFIG,
   SEED_WEEKLY_PLAYERS,
@@ -116,6 +118,8 @@ interface GameContextProps {
   updateBrandingSettings: (updates: Partial<BrandingSettings>) => Promise<void>;
   supportSettings: SupportSettings;
   updateSupportSettings: (updates: Partial<SupportSettings>) => Promise<void>;
+  contactWidgetSettings: ContactWidgetSettings;
+  updateContactWidgetSettings: (updates: Partial<ContactWidgetSettings>) => Promise<void>;
   weeklyPlayers: WeeklyPlayer[];
   weeklyLeaderboardConfig: WeeklyLeaderboardConfig;
   saveWeeklyPlayerAdmin: (player: WeeklyPlayer) => Promise<void>;
@@ -177,6 +181,7 @@ const DEFAULT_LOADING_SCREEN: LoadingScreenSettings = {
   const [brandingSettings, setBrandingSettings] = useState<BrandingSettings>(DEFAULT_BRANDING);
   const [loadingScreenSettings, setLoadingScreenSettings] = useState<LoadingScreenSettings>(DEFAULT_LOADING_SCREEN);
   const [supportSettings, setSupportSettings] = useState<SupportSettings>(DEFAULT_SUPPORT_SETTINGS);
+  const [contactWidgetSettings, setContactWidgetSettings] = useState<ContactWidgetSettings>(DEFAULT_CONTACT_WIDGET_SETTINGS);
   const [categories, setCategories] = useState<GameCategory[]>(DEFAULT_CATEGORIES);
   const [weeklyPlayers, setWeeklyPlayers] = useState<WeeklyPlayer[]>([]);
   const [weeklyLeaderboardConfig, setWeeklyLeaderboardConfig] = useState<WeeklyLeaderboardConfig>(DEFAULT_WEEKLY_LEADERBOARD_CONFIG);
@@ -489,6 +494,20 @@ const DEFAULT_LOADING_SCREEN: LoadingScreenSettings = {
         }
       );
 
+      const unsubContactWidget = onSnapshot(doc(db, 'contact_widget_settings', 'config'),
+        (docSnap) => {
+          if (docSnap.exists()) {
+            setContactWidgetSettings(docSnap.data() as ContactWidgetSettings);
+          } else {
+            setDoc(doc(db, 'contact_widget_settings', 'config'), DEFAULT_CONTACT_WIDGET_SETTINGS).catch(console.error);
+            setContactWidgetSettings(DEFAULT_CONTACT_WIDGET_SETTINGS);
+          }
+        },
+        (err) => {
+          console.warn("Contact widget settings sync error:", err);
+        }
+      );
+
       // Realtime categories listener
       const unsubCategories = onSnapshot(collection(db, 'categories'),
         (snapshot) => {
@@ -604,6 +623,7 @@ const DEFAULT_LOADING_SCREEN: LoadingScreenSettings = {
         unsubBranding();
         unsubLoadingScreen();
         unsubSupport();
+        unsubContactWidget();
         unsubCategories();
         unsubWeeklyPlayers();
         unsubWinners();
@@ -1950,6 +1970,23 @@ const DEFAULT_LOADING_SCREEN: LoadingScreenSettings = {
     }
   };
 
+  const updateContactWidgetSettings = async (updates: Partial<ContactWidgetSettings>) => {
+    // Optimistic UI update
+    setContactWidgetSettings(prev => ({ ...prev, ...updates }));
+    if (!useLocalFallback) {
+      try {
+        await updateDoc(doc(db, 'contact_widget_settings', 'config'), updates);
+      } catch (e: any) {
+        if (e.code === 'not-found') {
+          await setDoc(doc(db, 'contact_widget_settings', 'config'), { ...DEFAULT_CONTACT_WIDGET_SETTINGS, ...updates });
+        } else {
+          console.error("Failed to update contact widget settings:", e);
+          throw e;
+        }
+      }
+    }
+  };
+
   const saveStorageFileAdmin = async (fileData: Omit<StorageFile, 'id'> & { id?: string }) => {
     const docId = fileData.id || fileData.fileId || `file_${Date.now()}`;
     const timestamp = Date.now();
@@ -2130,6 +2167,8 @@ const DEFAULT_LOADING_SCREEN: LoadingScreenSettings = {
       updateLoadingScreenSettings,
       supportSettings,
       updateSupportSettings,
+      contactWidgetSettings,
+      updateContactWidgetSettings,
       weeklyPlayers,
       weeklyLeaderboardConfig,
       saveWeeklyPlayerAdmin,

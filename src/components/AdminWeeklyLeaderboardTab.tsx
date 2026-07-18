@@ -23,7 +23,7 @@ import {
   Flame
 } from 'lucide-react';
 
-export const AdminWeeklyLeaderboardTab: React.FC = () => {
+export const AdminWeeklyLeaderboardTab: React.FC<{ showConfirm?: (title: string, message: string, onConfirm: () => void | Promise<void>) => void }> = ({ showConfirm }) => {
   const { 
     weeklyPlayers, 
     weeklyLeaderboardConfig, 
@@ -677,9 +677,19 @@ export const AdminWeeklyLeaderboardTab: React.FC = () => {
 
                           {/* Delete Player */}
                           <button
-                            onClick={async () => {
-                              if (window.confirm(`Are you sure you want to delete ${p.name}?`)) {
+                            onClick={() => {
+                              const performDelete = async () => {
                                 await deleteWeeklyPlayerAdmin(p.id);
+                              };
+
+                              if (showConfirm) {
+                                showConfirm(
+                                  "Confirm Deletion",
+                                  `Are you sure you want to permanently delete ${p.name}? This action cannot be undone.`,
+                                  performDelete
+                                );
+                              } else if (window.confirm(`Are you sure you want to delete ${p.name}?`)) {
+                                performDelete();
                               }
                             }}
                             title="Delete Player profile"

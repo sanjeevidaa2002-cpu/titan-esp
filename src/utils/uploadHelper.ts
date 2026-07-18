@@ -65,11 +65,11 @@ export const uploadFileWithFallback = async (
     const uploadTask = uploadBytesResumable(storageRef, file);
 
     const downloadUrl = await new Promise<string>((resolve, reject) => {
-      // Set a strict timeout so we don't hang indefinitely on retry-limit-exceeded
+      // Set a strict connection timeout so we fall back quickly if Storage is blocked/unconfigured
       const timeoutId = setTimeout(() => {
         uploadTask.cancel();
-        reject(new Error("Firebase Storage request timed out. Activating local Base64 fallback."));
-      }, 7000); // 7 seconds timeout
+        reject(new Error("Storage connection timeout."));
+      }, 2500); // 2.5 seconds timeout
 
       uploadTask.on(
         'state_changed',
@@ -77,9 +77,11 @@ export const uploadFileWithFallback = async (
           const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
           if (onProgress) onProgress(Math.round(progress));
         },
-        (error) => {
+        (error: any) => {
           clearTimeout(timeoutId);
-          console.warn("Firebase Storage Upload Error, falling back to Base64:", error);
+          if (error?.code !== 'storage/canceled') {
+            console.log("Firebase Storage connectivity status:", error?.message || error);
+          }
           reject(error);
         },
         async () => {
@@ -96,7 +98,7 @@ export const uploadFileWithFallback = async (
 
     return { url: downloadUrl, provider: 'firebase' };
   } catch (err: any) {
-    console.warn("Firebase Storage failed or timed out. Using secure database-driven Base64 fallback.", err);
+    console.log("Using secure database-driven Base64 fallback mechanism.");
     
     // Fallback: compress file and convert to Base64
     if (onProgress) onProgress(30);

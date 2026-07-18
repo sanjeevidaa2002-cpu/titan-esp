@@ -5,13 +5,13 @@
 
 import React, { useState, useEffect } from 'react';
 import { useGame } from '../context/GameContext';
-import { Upload, ImageIcon, Check, Loader2, Save, Trash2, RotateCcw, X } from 'lucide-react';
+import { Upload, Check, Loader2, Save, RotateCcw, X } from 'lucide-react';
 import { uploadFileWithFallback } from '../utils/uploadHelper';
 import { LoadingScreenSettings } from '../types';
 import { TitanEsportsLogo } from './TitanEsportsLogo';
 
 export const LoadingPageManager: React.FC = () => {
-  const { loadingScreenSettings, updateLoadingScreenSettings, currentUser } = useGame();
+  const { loadingScreenSettings, updateLoadingScreenSettings } = useGame();
   
   const [localSettings, setLocalSettings] = useState<LoadingScreenSettings>(loadingScreenSettings);
   const [isSaving, setIsSaving] = useState(false);
@@ -25,12 +25,24 @@ export const LoadingPageManager: React.FC = () => {
   const [isDragging, setIsDragging] = useState(false);
 
   useEffect(() => {
-    setLocalSettings(loadingScreenSettings);
+    if (loadingScreenSettings) {
+      setLocalSettings(loadingScreenSettings);
+    }
   }, [loadingScreenSettings]);
 
   const handleFieldChange = (field: keyof LoadingScreenSettings, value: any) => {
     setLocalSettings(prev => ({ ...prev, [field]: value }));
     setSaveSuccess(null);
+  };
+
+  const isValidUrl = (url: string) => {
+    if (!url) return true; // empty falls back to default
+    try {
+      const parsed = new URL(url);
+      return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+    } catch (_) {
+      return false;
+    }
   };
 
   const validateFile = (file: File): string | null => {
@@ -76,39 +88,31 @@ export const LoadingPageManager: React.FC = () => {
       );
 
       const downloadURL = uploadResult.url;
-      
-      // Implement cache busting
       const timestamp = Date.now();
-      const cacheBustedUrl = `${downloadURL}${downloadURL.includes('?') ? '&' : '?'}v=${timestamp}`;
 
       // Create updated settings
       const updatedSettings: LoadingScreenSettings = {
         ...localSettings,
-        loadingLogoUrl: cacheBustedUrl,
-        loadingImageUrl: cacheBustedUrl,
-        uploadedLogoUrl: cacheBustedUrl,
+        loadingLogoUrl: downloadURL,
+        uploadedLogoUrl: downloadURL,
         loadingLogoType: 'upload',
         loadingLogoSource: 'upload',
         updatedAt: timestamp,
-        updatedBy: currentUser?.email || 'titangaming4m@gmail.com'
       };
 
-      // Instant DB Update
-      await updateLoadingScreenSettings(updatedSettings);
-
-      // Update local states
+      // Update local state first for real-time responsiveness
       setLocalSettings(updatedSettings);
       setImgError(false);
       setUploadStatus('success');
-      setSaveSuccess("Upload Successful & Loading Screen Updated!");
+      setSaveSuccess("Logo Uploaded! Click 'Save' to apply changes.");
       setTimeout(() => {
         setSaveSuccess(null);
         setUploadStatus('idle');
-      }, 4000);
+      }, 3000);
     } catch (err: any) {
       console.error("Upload error:", err);
       setUploadStatus('error');
-      setUploadError(`Upload/Database Error: ${err.message || err}`);
+      setUploadError(`Upload Error: ${err.message || err}`);
     }
   };
 
@@ -139,43 +143,20 @@ export const LoadingPageManager: React.FC = () => {
 
   const handleUrlChange = (val: string) => {
     const timestamp = Date.now();
-    const cacheBustedUrl = val ? `${val}${val.includes('?') ? '&' : '?'}v=${timestamp}` : '';
-    
     setLocalSettings(prev => ({
       ...prev,
-      loadingLogoUrl: cacheBustedUrl,
-      loadingImageUrl: cacheBustedUrl,
+      loadingLogoUrl: val,
       directLogoUrl: val,
       loadingLogoType: val ? 'url' : 'default',
       updatedAt: timestamp,
-      updatedBy: currentUser?.email || 'titangaming4m@gmail.com'
-    }));
-    setImgError(false);
-    setSaveSuccess(null);
-  };
-
-  const handleRemoveLogo = () => {
-    const timestamp = Date.now();
-    setLocalSettings(prev => ({
-      ...prev,
-      loadingLogoUrl: '',
-      loadingImageUrl: '',
-      uploadedLogoUrl: '',
-      directLogoUrl: '',
-      loadingLogoType: 'default',
-      loadingLogoSource: 'url',
-      updatedAt: timestamp,
-      updatedBy: currentUser?.email || 'titangaming4m@gmail.com'
     }));
     setImgError(false);
     setSaveSuccess(null);
   };
 
   const handleResetToDefaults = () => {
-    const DEFAULT_LOADING_SCREEN: LoadingScreenSettings = {
+    const defaultSettings: LoadingScreenSettings = {
       loadingLogoUrl: '',
-      loadingImageUrl: '',
-      loadingLogoSource: 'url',
       loadingTitle: 'TITAN ESPORTS',
       loadingSubtitle: 'PREMIUM GAMING',
       loadingText: 'INITIALIZING SYSTEM',
@@ -186,10 +167,10 @@ export const LoadingPageManager: React.FC = () => {
       uploadedLogoUrl: '',
       directLogoUrl: '',
       loadingLogoType: 'default',
+      loadingLogoSource: 'url',
       updatedAt: Date.now(),
-      updatedBy: currentUser?.email || 'titangaming4m@gmail.com'
     };
-    setLocalSettings(DEFAULT_LOADING_SCREEN);
+    setLocalSettings(defaultSettings);
     setImgError(false);
     setSaveSuccess(null);
   };
@@ -202,16 +183,10 @@ export const LoadingPageManager: React.FC = () => {
       const settingsToSave = {
         ...localSettings,
         updatedAt: timestamp,
-        updatedBy: currentUser?.email || 'titangaming4m@gmail.com'
       };
       
-      // Ensure loadingImageUrl mirrors active logo URL
-      if (settingsToSave.loadingLogoUrl) {
-        settingsToSave.loadingImageUrl = settingsToSave.loadingLogoUrl;
-      }
-      
       await updateLoadingScreenSettings(settingsToSave);
-      setSaveSuccess("Loading Screen Updated Successfully.");
+      setSaveSuccess("Loading Screen Config Saved Successfully!");
       setTimeout(() => setSaveSuccess(null), 3000);
     } catch (error: any) {
       console.error("Error saving loading settings:", error);
@@ -222,14 +197,15 @@ export const LoadingPageManager: React.FC = () => {
   };
 
   const getPreviewLogoUrl = () => {
-    if (localSettings.loadingLogoType === 'default') return '';
-    if (localSettings.loadingLogoType === 'upload') {
-      return localSettings.uploadedLogoUrl || localSettings.loadingImageUrl || localSettings.loadingLogoUrl || '';
+    if (imgError) return '';
+    const baseUrl = localSettings.loadingLogoUrl;
+    if (baseUrl) {
+      const version = localSettings.updatedAt || Date.now();
+      const cleanUrl = baseUrl.split('?v=')[0].split('&v=')[0];
+      const separator = cleanUrl.includes('?') ? '&' : '?';
+      return `${cleanUrl}${separator}v=${version}`;
     }
-    if (localSettings.loadingLogoType === 'url') {
-      return localSettings.directLogoUrl || localSettings.loadingImageUrl || localSettings.loadingLogoUrl || '';
-    }
-    return localSettings.loadingImageUrl || localSettings.loadingLogoUrl || '';
+    return '';
   };
 
   const currentImageUrl = getPreviewLogoUrl();
@@ -240,10 +216,10 @@ export const LoadingPageManager: React.FC = () => {
       <div className="bg-[#111116] border-b border-white/5 p-4 flex items-center justify-between">
         <div>
           <h2 className="text-sm font-black text-white uppercase tracking-widest flex items-center gap-2">
-            🚀 Loading Screen Manager
+            ☁️ Loading Screen Manager
           </h2>
           <p className="text-[10px] text-neutral-400 mt-1">
-            Configure the visual appearance and text of the initial application loading screen.
+            Customize the logo, title, subtitle, and text for the initial loading screen.
           </p>
         </div>
         <button
@@ -263,143 +239,97 @@ export const LoadingPageManager: React.FC = () => {
           
           {/* Logo Section */}
           <div className="bg-[#0a0a0f] border border-white/5 p-5 rounded-xl space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-xs font-bold text-white uppercase tracking-wide">Loading Logo</h3>
-                <p className="text-[10px] text-neutral-400 mt-0.5">Choose an image upload or specify an external URL.</p>
-              </div>
-              {localSettings.loadingLogoType && localSettings.loadingLogoType !== 'default' && (
-                <button
-                  onClick={handleRemoveLogo}
-                  className="flex items-center gap-1.5 px-2.5 py-1 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 hover:border-red-500/35 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                  Remove Logo
-                </button>
-              )}
+            <div>
+              <h3 className="text-xs font-bold text-white uppercase tracking-wide">Upload Logo</h3>
+              <p className="text-[10px] text-neutral-400 mt-0.5">Drag & drop or upload a custom Mascot Logo.</p>
             </div>
 
-            <div className="flex gap-4 mb-2">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input 
-                  type="radio" 
-                  checked={localSettings.loadingLogoSource === 'upload'} 
-                  onChange={() => {
-                    handleFieldChange('loadingLogoSource', 'upload');
-                    setLocalSettings(prev => ({
-                      ...prev,
-                      loadingLogoType: prev.uploadedLogoUrl ? 'upload' : 'default'
-                    }));
-                  }}
-                  className="accent-gold-500"
-                />
-                <span className="text-xs text-neutral-300">Upload Image</span>
-              </label>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input 
-                  type="radio" 
-                  checked={localSettings.loadingLogoSource === 'url'} 
-                  onChange={() => {
-                    handleFieldChange('loadingLogoSource', 'url');
-                    setLocalSettings(prev => ({
-                      ...prev,
-                      loadingLogoType: prev.directLogoUrl ? 'url' : 'default'
-                    }));
-                  }}
-                  className="accent-gold-500"
-                />
-                <span className="text-xs text-neutral-300">Image URL</span>
-              </label>
-            </div>
-
-            {localSettings.loadingLogoSource === 'upload' ? (
-              <div className="space-y-3">
-                <div
-                  onDragOver={handleDragOver}
-                  onDragLeave={handleDragLeave}
-                  onDrop={handleDrop}
-                  className={`relative flex flex-col items-center justify-center w-full h-32 rounded-xl border border-dashed cursor-pointer transition-all ${
-                    isDragging 
-                      ? 'border-gold-500 bg-gold-500/5 shadow-[0_0_15px_rgba(229,169,25,0.15)]' 
-                      : 'border-white/20 bg-[#111116] hover:border-gold-500/40 hover:bg-white/5'
-                  }`}
-                >
-                  <label className="w-full h-full flex flex-col items-center justify-center cursor-pointer">
-                    <Upload className={`w-7 h-7 mb-2 transition-transform ${isDragging ? 'scale-110 text-gold-400' : 'text-neutral-400'}`} />
-                    <span className="text-xs text-neutral-300 font-bold">
-                      {isDragging ? 'Drop to Upload' : 'Click or Drag & Drop to Upload'}
-                    </span>
-                    <span className="text-[10px] text-neutral-500 mt-1">
-                      JPG, JPEG, PNG, WEBP, SVG (Max 10MB)
-                    </span>
-                    <input type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
-                  </label>
-                </div>
-
-                {/* Upload Status Messages */}
-                {uploadStatus === 'uploading' && (
-                  <div className="bg-[#111116] border border-white/5 rounded-xl p-3 space-y-2">
-                    <div className="flex justify-between items-center text-xs">
-                      <span className="text-amber-400 font-bold flex items-center gap-1.5">
-                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                        Uploading...
-                      </span>
-                      <span className="text-neutral-400 font-mono text-[11px]">{uploadProgress}%</span>
-                    </div>
-                    <div className="w-full bg-neutral-800 rounded-full h-1.5 overflow-hidden">
-                      <div className="bg-gold-500 h-1.5 rounded-full transition-all duration-300" style={{ width: `${uploadProgress}%` }}></div>
-                    </div>
-                  </div>
-                )}
-
-                {uploadStatus === 'success' && (
-                  <div className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 p-3 rounded-xl flex items-center gap-2 text-xs font-semibold animate-fade-in">
-                    <Check className="w-4 h-4 flex-shrink-0 bg-emerald-500/20 p-0.5 rounded-full" />
-                    <span>Upload Successful! Image saved to database.</span>
-                  </div>
-                )}
-
-                {uploadStatus === 'error' && (
-                  <div className="bg-red-500/10 border border-red-500/20 text-red-400 p-3 rounded-xl flex items-start gap-2 text-xs font-semibold animate-fade-in">
-                    <X className="w-4 h-4 flex-shrink-0 bg-red-500/20 p-0.5 rounded-full mt-0.5" />
-                    <div className="flex-1">
-                      <span className="block font-bold">Upload Failed</span>
-                      <span className="text-[11px] text-red-400/80 mt-0.5 block">{uploadError}</span>
-                    </div>
-                  </div>
-                )}
-
-                {localSettings.uploadedLogoUrl && (
-                  <div className="text-[10px] text-emerald-400 flex items-center gap-1.5 font-mono break-all bg-emerald-500/5 border border-emerald-500/10 p-2.5 rounded-lg">
-                    <Check className="w-3.5 h-3.5 flex-shrink-0" />
-                    <span>Active URL: {localSettings.uploadedLogoUrl}</span>
-                  </div>
-                )}
-              </div>
-            ) : (
+            <div
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+              className={`border border-dashed rounded-xl p-6 text-center cursor-pointer transition-all ${
+                isDragging 
+                  ? 'border-gold-500 bg-gold-500/5' 
+                  : 'border-white/10 hover:border-white/20 bg-[#111116]/50'
+              }`}
+              onClick={() => document.getElementById('logo-upload-input')?.click()}
+            >
               <input
-                type="text"
-                value={localSettings.directLogoUrl || localSettings.loadingLogoUrl || ''}
-                onChange={(e) => handleUrlChange(e.target.value)}
-                placeholder="https://example.com/logo.png"
-                className="w-full bg-[#111116] border border-white/10 rounded-lg px-3 py-2 text-xs text-white focus:border-gold-500 outline-none font-mono"
+                id="logo-upload-input"
+                type="file"
+                className="hidden"
+                accept=".jpg,.jpeg,.png,.webp,.svg"
+                onChange={handleImageUpload}
               />
+              <Upload className="w-6 h-6 text-neutral-400 mx-auto mb-2" />
+              <p className="text-xs text-neutral-300 font-medium">Click to upload or drag & drop</p>
+              <p className="text-[10px] text-neutral-500 mt-1">PNG, JPG, WEBP, or SVG up to 10MB</p>
+            </div>
+
+            {uploadStatus === 'uploading' && (
+              <div className="space-y-1">
+                <div className="flex justify-between text-[10px] font-mono text-neutral-400">
+                  <span>Uploading file...</span>
+                  <span>{uploadProgress}%</span>
+                </div>
+                <div className="w-full bg-[#111116] rounded-full h-1">
+                  <div className="bg-gold-500 h-1 rounded-full transition-all duration-150" style={{ width: `${uploadProgress}%` }} />
+                </div>
+              </div>
             )}
 
-            <div className="pt-2 border-t border-white/5 flex justify-end">
-              <button
-                onClick={handleResetToDefaults}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 border border-white/10 hover:border-white/25 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all"
-              >
-                <RotateCcw className="w-3.5 h-3.5" />
-                Reset to Defaults
-              </button>
+            {uploadStatus === 'error' && uploadError && (
+              <div className="text-[10px] text-red-400 font-semibold bg-red-500/5 border border-red-500/10 p-2.5 rounded-lg">
+                {uploadError}
+              </div>
+            )}
+
+            {localSettings.uploadedLogoUrl && (
+              <div className="text-[10px] text-emerald-400 flex items-center gap-1.5 font-mono break-all bg-emerald-500/5 border border-emerald-500/10 p-2.5 rounded-lg">
+                <Check className="w-3.5 h-3.5 flex-shrink-0" />
+                <span>Uploaded URL: {localSettings.uploadedLogoUrl}</span>
+              </div>
+            )}
+          </div>
+
+          {/* Logo URL Section */}
+          <div className="bg-[#0a0a0f] border border-white/5 p-5 rounded-xl space-y-3">
+            <div>
+              <h3 className="text-xs font-bold text-white uppercase tracking-wide">Loading Logo Image URL</h3>
+              <p className="text-[10px] text-neutral-400 mt-0.5">Paste Firebase Storage Image URL or any direct image link.</p>
             </div>
+            <input
+              type="text"
+              value={localSettings.loadingLogoUrl || ''}
+              onChange={(e) => handleUrlChange(e.target.value)}
+              placeholder="https://firebasestorage.googleapis.com/..."
+              className={`w-full bg-[#111116] border rounded-lg px-3 py-2 text-xs text-white focus:border-gold-500 outline-none font-mono ${
+                localSettings.loadingLogoUrl 
+                  ? isValidUrl(localSettings.loadingLogoUrl)
+                    ? 'border-emerald-500/50'
+                    : 'border-red-500/50'
+                  : 'border-white/10'
+              }`}
+            />
+            {localSettings.loadingLogoUrl && (
+              <div className="flex items-center gap-1.5 mt-1 text-[10px]">
+                {isValidUrl(localSettings.loadingLogoUrl) ? (
+                  <span className="text-emerald-400 font-semibold flex items-center gap-1">
+                    <Check className="w-3.5 h-3.5" /> Valid Image URL
+                  </span>
+                ) : (
+                  <span className="text-red-400 font-semibold flex items-center gap-1">
+                    <X className="w-3.5 h-3.5" /> Invalid URL Format
+                  </span>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Text Settings */}
           <div className="bg-[#0a0a0f] border border-white/5 p-5 rounded-xl space-y-4">
-            <h3 className="text-xs font-bold text-white uppercase tracking-wide">Text Settings</h3>
+            <h3 className="text-xs font-bold text-white uppercase tracking-wide">Text Customizations</h3>
             
             <div className="space-y-3">
               <div>
@@ -421,7 +351,7 @@ export const LoadingPageManager: React.FC = () => {
                 />
               </div>
               <div>
-                <label className="block text-[10px] text-neutral-400 uppercase tracking-wider mb-1">Loading Text (e.g. Initializing System)</label>
+                <label className="block text-[10px] text-neutral-400 uppercase tracking-wider mb-1">Loading Text</label>
                 <input
                   type="text"
                   value={localSettings.loadingText}
@@ -432,116 +362,73 @@ export const LoadingPageManager: React.FC = () => {
             </div>
           </div>
 
-          {/* Appearance & Toggles */}
-          <div className="bg-[#0a0a0f] border border-white/5 p-5 rounded-xl space-y-4">
-            <h3 className="text-xs font-bold text-white uppercase tracking-wide">Appearance</h3>
-            
-            <div className="space-y-4">
-              <div>
-                <label className="block text-[10px] text-neutral-400 uppercase tracking-wider mb-1">Background Color (Hex, RGB, etc.)</label>
-                <div className="flex gap-2">
-                  <input
-                    type="color"
-                    value={localSettings.backgroundColor || '#08080c'}
-                    onChange={(e) => handleFieldChange('backgroundColor', e.target.value)}
-                    className="w-8 h-8 rounded bg-transparent border-0 cursor-pointer"
-                  />
-                  <input
-                    type="text"
-                    value={localSettings.backgroundColor}
-                    onChange={(e) => handleFieldChange('backgroundColor', e.target.value)}
-                    className="flex-1 bg-[#111116] border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white outline-none font-mono focus:border-gold-500"
-                  />
-                </div>
-              </div>
-              
-              <div>
-                <label className="block text-[10px] text-neutral-400 uppercase tracking-wider mb-1">Background Image URL (Optional)</label>
-                <input
-                  type="text"
-                  value={localSettings.backgroundImage}
-                  onChange={(e) => handleFieldChange('backgroundImage', e.target.value)}
-                  placeholder="Leave empty for solid color"
-                  className="w-full bg-[#111116] border border-white/10 rounded-lg px-3 py-2 text-xs text-white outline-none font-mono focus:border-gold-500"
-                />
-              </div>
-
-              <div className="pt-2 flex flex-col gap-3">
-                <label className="flex items-center justify-between cursor-pointer">
-                  <span className="text-xs text-neutral-300 font-bold">Enable Progress Bar</span>
-                  <div className={`w-10 h-5 rounded-full flex items-center p-1 transition-colors ${localSettings.progressBarEnabled ? 'bg-gold-500' : 'bg-neutral-700'}`}>
-                    <div className={`w-3.5 h-3.5 rounded-full bg-white transition-transform ${localSettings.progressBarEnabled ? 'translate-x-5' : 'translate-x-0'}`} />
-                  </div>
-                  <input type="checkbox" className="hidden" checked={localSettings.progressBarEnabled} onChange={(e) => handleFieldChange('progressBarEnabled', e.target.checked)} />
-                </label>
-                <label className="flex items-center justify-between cursor-pointer">
-                  <span className="text-xs text-neutral-300 font-bold">Enable Animation</span>
-                  <div className={`w-10 h-5 rounded-full flex items-center p-1 transition-colors ${localSettings.animationEnabled ? 'bg-gold-500' : 'bg-neutral-700'}`}>
-                    <div className={`w-3.5 h-3.5 rounded-full bg-white transition-transform ${localSettings.animationEnabled ? 'translate-x-5' : 'translate-x-0'}`} />
-                  </div>
-                  <input type="checkbox" className="hidden" checked={localSettings.animationEnabled} onChange={(e) => handleFieldChange('animationEnabled', e.target.checked)} />
-                </label>
-              </div>
-            </div>
+          {/* Reset Action */}
+          <div className="flex justify-start">
+            <button
+              onClick={handleResetToDefaults}
+              className="flex items-center gap-1.5 px-4 py-2 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 border border-white/10 hover:border-white/25 rounded-xl text-xs font-bold uppercase tracking-wider transition-all"
+            >
+              <RotateCcw className="w-4 h-4" />
+              Reset to Default
+            </button>
           </div>
 
         </div>
 
         {/* Live Preview Panel */}
-        <div className="w-full lg:w-1/2 bg-[#050508] border border-white/10 rounded-2xl overflow-hidden relative min-h-[400px] flex items-center justify-center" style={{ backgroundColor: localSettings.backgroundColor, backgroundImage: localSettings.backgroundImage ? `url(${localSettings.backgroundImage})` : undefined, backgroundSize: 'cover', backgroundPosition: 'center' }}>
+        <div className="w-full lg:w-1/2 bg-[#08080c] border border-white/10 rounded-2xl overflow-hidden relative min-h-[450px] flex items-center justify-center">
           
           <div className="absolute top-4 left-4 bg-black/50 backdrop-blur px-3 py-1.5 rounded-lg border border-white/10 text-[10px] font-bold text-white uppercase tracking-widest z-10">
-            Live Preview
+            Live Preview (Original Design)
           </div>
 
           <div className="relative z-10 flex flex-col items-center justify-center p-8 w-full max-w-sm text-center">
             
-            {/* Logo */}
-            <div className={`w-32 h-32 mb-8 flex items-center justify-center ${localSettings.animationEnabled ? 'animate-pulse' : ''}`}>
+            {/* Original Centered Logo Container */}
+            <div className="relative w-48 h-48 mb-8 flex items-center justify-center">
               {currentImageUrl && !imgError ? (
                 <img 
                   src={currentImageUrl} 
                   alt="Loading Logo" 
-                  className="max-w-full max-h-full object-contain drop-shadow-[0_0_15px_rgba(255,255,255,0.1)]"
+                  className="w-full h-full object-contain"
                   onError={() => setImgError(true)}
                 />
               ) : (
-                <TitanEsportsLogo className="w-20 h-20 max-w-full max-h-full object-contain" />
+                <TitanEsportsLogo className="w-full h-full object-contain" />
               )}
             </div>
 
             {/* Texts */}
-            <h1 className="text-2xl font-black text-white uppercase tracking-[0.2em] drop-shadow-lg">
+            <h1 className="text-3xl font-extrabold tracking-widest text-[#e5a919] uppercase font-sans mb-2">
               {localSettings.loadingTitle}
             </h1>
             
             {localSettings.loadingSubtitle && (
-              <p className="text-gold-400 font-mono text-sm mt-2 font-bold tracking-widest uppercase">
+              <p className="text-xs tracking-[0.3em] font-semibold uppercase text-neutral-400">
                 {localSettings.loadingSubtitle}
               </p>
             )}
 
             {/* Progress */}
-            {localSettings.progressBarEnabled && (
-              <div className="w-full mt-10">
-                <div className="flex justify-between text-[10px] font-mono text-neutral-400 mb-2 uppercase tracking-wider">
-                  <span>{localSettings.loadingText}</span>
-                  <span>45%</span>
-                </div>
-                <div className="w-full h-1 bg-white/5 rounded-full overflow-hidden backdrop-blur-sm">
-                  <div className="h-full w-[45%] bg-gradient-to-r from-amber-500 to-gold-500 relative">
-                    <div className="absolute inset-0 bg-white/20 w-full h-full animate-[shimmer_2s_infinite]" />
-                  </div>
-                </div>
+            <div className="w-full mt-8">
+              <div className="w-full bg-neutral-800 rounded-full h-1.5 mb-4 overflow-hidden">
+                <div className="h-full rounded-full bg-[#e5a919] w-[45%]" />
               </div>
-            )}
+              <div className="flex items-center justify-between text-[10px] font-mono tracking-widest uppercase text-neutral-400">
+                <div className="flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#e5a919] animate-pulse" />
+                  <span>{localSettings.loadingText}</span>
+                </div>
+                <span className="font-bold text-[#e5a919]">45%</span>
+              </div>
+            </div>
           </div>
         </div>
 
       </div>
 
       {saveSuccess && (
-        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-green-500/20 border border-green-500/50 text-green-400 px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2 backdrop-blur-md z-50">
+        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-green-500/20 border border-green-500/50 text-green-400 px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2 backdrop-blur-md z-50 animate-fade-in">
           <Check className="w-4 h-4" />
           {saveSuccess}
         </div>

@@ -374,6 +374,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
     tournamentType: 'paid' | 'free';
     enabled: boolean;
     matchCategory: 'BR' | 'CS';
+    gameName: 'Free Fire' | 'PUBG Mobile' | 'Hacker Match';
+    category: 'BR' | 'CS';
+    matchType: 'Solo' | 'Duo' | 'Squad';
   }>({
     id: '',
     title: '',
@@ -399,6 +402,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
     tournamentType: 'paid',
     enabled: true,
     matchCategory: 'BR',
+    gameName: 'Free Fire',
+    category: 'BR',
+    matchType: 'Solo',
     rules: [
       'Teaming will lead to direct disqualification and zero prize payouts.',
       'Emulators and VPN tools are strictly prohibited inside this room.',
@@ -821,6 +827,22 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
     );
   };
 
+  const handleDeleteReg = (regId: string) => {
+    showConfirm(
+      'Delete Tournament Registration',
+      `Are you sure you want to permanently delete registration ${regId}? All associated record connections will be permanently detached. This cannot be undone.`,
+      async () => {
+        try {
+          await deleteDoc(doc(db, 'registrations', regId));
+          addAuditLog(`Permanently deleted registration ${regId}`);
+          triggerNotification('Registration Deleted', 'Successfully deleted the registration profile.', 'system');
+        } catch (err: any) {
+          triggerNotification('Error', "Error deleting registration: " + err.message, 'alert');
+        }
+      }
+    );
+  };
+
   const handleSaveRegEdit = async () => {
     if (!editingReg) return;
     try {
@@ -967,6 +989,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
       tournamentType: 'paid',
     enabled: true,
     matchCategory: 'BR',
+      gameName: 'Free Fire',
+      category: 'BR',
+      matchType: 'Solo',
       rules: [
         'Teaming will lead to direct disqualification.',
         'Emulators prohibited.',
@@ -977,6 +1002,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
 
   const openEditMatchForm = (t: Tournament) => {
     setIsEditingMatch(t.id);
+    const legacyGameName = t.gameCategory === 'pubg_mobile' ? 'PUBG Mobile' : t.gameCategory === 'hacker_match' ? 'Hacker Match' : 'Free Fire';
     setMatchForm({
       id: t.id,
       title: t.title,
@@ -1002,6 +1028,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
       tournamentType: t.tournamentType || (t.isFreeMatch || t.entryFee === 0 ? 'free' : 'paid'),
       enabled: t.enabled !== false,
       matchCategory: (t.matchCategory as 'BR' | 'CS') || 'BR',
+      gameName: (t.gameName as any) || legacyGameName,
+      category: (t.category as any) || (t.matchCategory as any) || 'BR',
+      matchType: (t.matchType as any) || (t.mode as any) || 'Solo',
       rules: t.rules || [
         'Teaming will lead to direct disqualification.',
         'Emulators prohibited.',
@@ -1058,11 +1087,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
       const finalEntryFee = isFree ? 0 : matchForm.entryFee;
       const finalIsFreeMatch = isFree ? true : matchForm.isFreeMatch;
 
+      const legacyGameCategory = matchForm.gameName === 'PUBG Mobile' ? 'pubg_mobile' : matchForm.gameName === 'Hacker Match' ? 'hacker_match' : 'free_fire';
+
       const matchData: Tournament = {
         ...matchForm,
         entryFee: finalEntryFee,
         isFreeMatch: finalIsFreeMatch,
         id: matchForm.id,
+        gameCategory: legacyGameCategory,
+        matchCategory: matchForm.category,
+        mode: matchForm.matchType,
         lastUpdated: new Date().toISOString(),
           updatedBy: 'Admin',
         rules: matchForm.rules,
@@ -1249,6 +1283,22 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
     );
   };
 
+  const handleDeleteTransaction = (id: string) => {
+    showConfirm(
+      "Delete Transaction Record",
+      "Are you absolutely sure you want to permanently delete this transaction record? This action cannot be undone.",
+      async () => {
+        try {
+          await deleteDoc(doc(db, 'transactions', id));
+          addAuditLog(`Deleted transaction record ${id}`);
+          triggerNotification("Deleted", "Transaction record permanently deleted.", "alert");
+        } catch (err: any) {
+          triggerNotification("Error", "Error deleting transaction: " + err.message, "alert");
+        }
+      }
+    );
+  };
+
   // Approve Deposits / Withdrawals
   const handleApproveTxn = async (txn: Transaction) => {
     if (txn.status === 'completed' || txn.status === 'cancelled' || txn.status === 'failed') {
@@ -1326,8 +1376,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
   };
 
   const handleDeletePromo = (codeToDelete: string) => {
-    setPromoCodes(promoCodes.filter(p => p.code !== codeToDelete));
-    addAuditLog(`Deleted promo code ${codeToDelete}`);
+    showConfirm(
+      "Delete Promo Code",
+      `Are you sure you want to permanently delete the promo code "${codeToDelete}"? This action cannot be undone.`,
+      () => {
+        setPromoCodes(promoCodes.filter(p => p.code !== codeToDelete));
+        addAuditLog(`Deleted promo code ${codeToDelete}`);
+      }
+    );
   };
 
   // Push notification triggers
@@ -1812,7 +1868,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
             }`}
           >
             <MessageCircle className="w-4 h-4" />
-            {!sidebarCollapsed && <span>Support Settings</span>}
+            {!sidebarCollapsed && <span>Contact Widget Settings</span>}
           </button>
         </nav>
 
@@ -1935,22 +1991,30 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
 
                         <div className="flex justify-between items-center pt-2 border-t border-white/10 text-[10px] mt-2">
                           <span className="text-neutral-500 font-mono">{new Date(txn.dateTime).toLocaleString()}</span>
-                          {(txn.status === 'pending_verification' || txn.status === 'pending') && (
-                            <div className="flex gap-2">
-                              <button 
-                                onClick={() => handleCompletePaymentRequest(txn)}
-                                className="px-4 py-2 bg-green-500/10 border border-green-500/30 hover:bg-green-500/20 text-green-400 rounded-lg font-black uppercase tracking-wider text-[10px] transition-all cursor-pointer shadow-lg"
-                              >
-                                Complete
-                              </button>
-                              <button 
-                                onClick={() => handleCancelPaymentRequest(txn)}
-                                className="px-4 py-2 bg-red-500/10 border border-red-500/30 hover:bg-red-500/20 text-red-400 rounded-lg font-black uppercase tracking-wider text-[10px] transition-all cursor-pointer shadow-lg"
-                              >
-                                Cancel
-                              </button>
-                            </div>
-                          )}
+                          <div className="flex gap-2 items-center">
+                            {(txn.status === 'pending_verification' || txn.status === 'pending') && (
+                              <>
+                                <button 
+                                  onClick={() => handleCompletePaymentRequest(txn)}
+                                  className="px-3 py-1.5 bg-green-500/10 border border-green-500/30 hover:bg-green-500/20 text-green-400 rounded-lg font-black uppercase tracking-wider text-[9px] transition-all cursor-pointer shadow-lg"
+                                >
+                                  Complete
+                                </button>
+                                <button 
+                                  onClick={() => handleCancelPaymentRequest(txn)}
+                                  className="px-3 py-1.5 bg-yellow-500/10 border border-yellow-500/30 hover:bg-yellow-500/20 text-yellow-400 rounded-lg font-black uppercase tracking-wider text-[9px] transition-all cursor-pointer shadow-lg"
+                                >
+                                  Cancel
+                                </button>
+                              </>
+                            )}
+                            <button 
+                              onClick={() => handleDeleteTransaction(txn.id)}
+                              className="px-3 py-1.5 bg-red-500/10 border border-red-500/30 hover:bg-red-500/20 text-red-400 rounded-lg font-black uppercase tracking-wider text-[9px] transition-all cursor-pointer shadow-lg"
+                            >
+                              Delete
+                            </button>
+                          </div>
                         </div>
                       </div>
                     );
@@ -2198,19 +2262,35 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
                   </div>
                 </div>
 
-                <div className="flex justify-end gap-2 pt-2">
-                  <button 
-                    onClick={() => setEditingUser(null)}
-                    className="px-4 py-1.5 rounded-lg bg-neutral-900 text-xs font-bold uppercase tracking-wider text-neutral-400 hover:text-white"
-                  >
-                    Cancel
-                  </button>
-                  <button 
-                    onClick={saveUserEdits}
-                    className="px-4 py-1.5 rounded-lg bg-gradient-to-r from-gold-500 to-amber-600 text-neutral-950 text-xs font-black uppercase tracking-wider shadow-lg"
-                  >
-                    Save Changes
-                  </button>
+                <div className="flex justify-between items-center pt-2">
+                  <div>
+                    <button 
+                      type="button"
+                      onClick={() => {
+                        const originalUid = editingUser.uid;
+                        const originalNickname = editingUser.nickname;
+                        setEditingUser(null);
+                        deleteUser(originalUid, originalNickname);
+                      }}
+                      className="px-4 py-1.5 rounded-lg bg-red-500/10 border border-red-500/20 text-xs font-bold uppercase tracking-wider text-red-400 hover:bg-red-500/20 cursor-pointer"
+                    >
+                      Delete Account
+                    </button>
+                  </div>
+                  <div className="flex gap-2">
+                    <button 
+                      onClick={() => setEditingUser(null)}
+                      className="px-4 py-1.5 rounded-lg bg-neutral-900 text-xs font-bold uppercase tracking-wider text-neutral-400 hover:text-white cursor-pointer"
+                    >
+                      Cancel
+                    </button>
+                    <button 
+                      onClick={saveUserEdits}
+                      className="px-4 py-1.5 rounded-lg bg-gradient-to-r from-gold-500 to-amber-600 text-neutral-950 text-xs font-black uppercase tracking-wider shadow-lg cursor-pointer"
+                    >
+                      Save Changes
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
@@ -2367,11 +2447,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
 
                   {/* Row 2 */}
                   <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wide">Match Category (BR/CS)</label>
+                    <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wide">Category (BR/CS)</label>
                     <select
-                      value={matchForm.matchCategory}
-                      onChange={e => setMatchForm({...matchForm, matchCategory: e.target.value as 'BR' | 'CS'})}
-                      className="w-full bg-neutral-900 border border-white/10 rounded-xl p-2.5 text-xs text-white"
+                      value={matchForm.category}
+                      onChange={e => {
+                        const val = e.target.value as 'BR' | 'CS';
+                        setMatchForm({...matchForm, category: val, matchCategory: val});
+                      }}
+                      className="w-full bg-neutral-900 border border-white/10 rounded-xl p-2.5 text-xs text-white font-extrabold"
                     >
                       <option value="BR">Battle Royale (BR)</option>
                       <option value="CS">Clash Squad (CS)</option>
@@ -2379,17 +2462,19 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
                   </div>
 
                   <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wide">Game Category</label>
+                    <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wide">Game</label>
                     <select
-                      value={matchForm.gameCategory}
-                      onChange={e => setMatchForm({...matchForm, gameCategory: e.target.value})}
-                      className="w-full bg-neutral-900 border border-white/10 rounded-xl p-2.5 text-xs text-white"
+                      value={matchForm.gameName}
+                      onChange={e => {
+                        const val = e.target.value as 'Free Fire' | 'PUBG Mobile' | 'Hacker Match';
+                        const legacyCat = val === 'PUBG Mobile' ? 'pubg_mobile' : val === 'Hacker Match' ? 'hacker_match' : 'free_fire';
+                        setMatchForm({...matchForm, gameName: val, gameCategory: legacyCat});
+                      }}
+                      className="w-full bg-neutral-900 border border-white/10 rounded-xl p-2.5 text-xs text-white font-extrabold"
                     >
-                      {categories?.filter(c => c.enabled !== false).map(cat => (
-                        <option key={cat.id} value={cat.id}>
-                          {cat.name}
-                        </option>
-                      ))}
+                      <option value="Free Fire">🎮 Free Fire</option>
+                      <option value="PUBG Mobile">🎮 PUBG Mobile</option>
+                      <option value="Hacker Match">🛡️ Hacker Match</option>
                     </select>
                   </div>
 
@@ -2441,11 +2526,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
                   </div>
 
                   <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wide">Mode</label>
+                    <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wide">Match Type (Solo/Duo/Squad)</label>
                     <select
-                      value={matchForm.mode}
-                      onChange={e => setMatchForm({...matchForm, mode: e.target.value as 'Solo' | 'Duo' | 'Squad'})}
-                      className="w-full bg-neutral-900 border border-white/10 rounded-xl p-2.5 text-xs text-white"
+                      value={matchForm.matchType}
+                      onChange={e => {
+                        const val = e.target.value as 'Solo' | 'Duo' | 'Squad';
+                        setMatchForm({...matchForm, matchType: val, mode: val});
+                      }}
+                      className="w-full bg-neutral-900 border border-white/10 rounded-xl p-2.5 text-xs text-white font-extrabold"
                     >
                       <option value="Solo">Solo</option>
                       <option value="Duo">Duo</option>
@@ -2783,19 +2871,36 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
                   </div>
                 </div>
 
-                <div className="flex justify-end gap-2 pt-3 border-t border-white/5">
-                  <button 
-                    onClick={() => setIsEditingMatch(null)}
-                    className="px-5 py-2 rounded-xl bg-neutral-900 border border-white/5 text-xs font-bold uppercase tracking-wider text-neutral-400 hover:text-white cursor-pointer"
-                  >
-                    Discard Draft
-                  </button>
-                  <button 
-                    onClick={saveMatchForm}
-                    className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-gold-500 to-amber-600 text-neutral-950 text-xs font-black uppercase tracking-widest shadow-lg cursor-pointer"
-                  >
-                    Publish Match Room
-                  </button>
+                <div className="flex justify-between items-center pt-3 border-t border-white/5">
+                  <div>
+                    {isEditingMatch !== 'new' && (
+                      <button 
+                        type="button"
+                        onClick={() => {
+                          const originalId = isEditingMatch;
+                          setIsEditingMatch(null);
+                          deleteMatch(originalId, matchForm.title);
+                        }}
+                        className="px-5 py-2 rounded-xl bg-red-500/10 border border-red-500/20 text-xs font-bold uppercase tracking-wider text-red-400 hover:bg-red-500/20 cursor-pointer"
+                      >
+                        Delete Match Room
+                      </button>
+                    )}
+                  </div>
+                  <div className="flex gap-2">
+                    <button 
+                      onClick={() => setIsEditingMatch(null)}
+                      className="px-5 py-2 rounded-xl bg-neutral-900 border border-white/5 text-xs font-bold uppercase tracking-wider text-neutral-400 hover:text-white cursor-pointer"
+                    >
+                      Discard Draft
+                    </button>
+                    <button 
+                      onClick={saveMatchForm}
+                      className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-gold-500 to-amber-600 text-neutral-950 text-xs font-black uppercase tracking-widest shadow-lg cursor-pointer"
+                    >
+                      Publish Match Room
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
@@ -3128,9 +3233,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
                               </button>
                               <button 
                                 onClick={() => handleRejectTxn(txn)}
-                                className="px-2.5 py-1 bg-red-500/10 border border-red-500/20 hover:bg-red-500/20 text-red-400 rounded font-bold uppercase text-[9px] cursor-pointer"
+                                className="px-2.5 py-1 bg-yellow-500/10 border border-yellow-500/20 hover:bg-yellow-500/20 text-yellow-400 rounded font-bold uppercase text-[9px] cursor-pointer"
                               >
                                 Reject
+                              </button>
+                              <button 
+                                onClick={() => handleDeleteTransaction(txn.id)}
+                                className="px-2.5 py-1 bg-red-500/10 border border-red-500/20 hover:bg-red-500/20 text-red-400 rounded font-bold uppercase text-[9px] cursor-pointer"
+                              >
+                                Delete
                               </button>
                             </div>
                           </div>
@@ -3178,9 +3289,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
                               </button>
                               <button 
                                 onClick={() => handleRejectTxn(txn)}
-                                className="px-2.5 py-1 bg-red-500/10 border border-red-500/20 hover:bg-red-500/20 text-red-400 rounded font-bold uppercase text-[9px] cursor-pointer"
+                                className="px-2.5 py-1 bg-yellow-500/10 border border-yellow-500/20 hover:bg-yellow-500/20 text-yellow-400 rounded font-bold uppercase text-[9px] cursor-pointer"
                               >
                                 Reject
+                              </button>
+                              <button 
+                                onClick={() => handleDeleteTransaction(txn.id)}
+                                className="px-2.5 py-1 bg-red-500/10 border border-red-500/20 hover:bg-red-500/20 text-red-400 rounded font-bold uppercase text-[9px] cursor-pointer"
+                              >
+                                Delete
                               </button>
                             </div>
                           </div>
@@ -4619,6 +4736,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
                                       Cancel
                                     </button>
                                   )}
+
+                                  <button
+                                    onClick={() => handleDeleteReg(reg.id)}
+                                    className="p-1 px-2 rounded bg-red-500/10 border border-red-500/30 hover:bg-red-500/20 text-red-400 text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer"
+                                  >
+                                    Delete
+                                  </button>
                                 </div>
                               </td>
                             </tr>
@@ -4731,20 +4855,38 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
                       </div>
                     </div>
 
-                    <div className="flex gap-3 pt-2">
-                      <button
-                        onClick={() => setEditingReg(null)}
-                        className="flex-1 py-2.5 rounded-xl border border-white/10 text-neutral-400 hover:text-white text-xs font-bold uppercase transition-all cursor-pointer text-center"
-                      >
-                        Cancel
-                      </button>
+                     <div className="flex justify-between items-center pt-2">
+                      <div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const originalId = editingReg.id;
+                            setEditingReg(null);
+                            handleDeleteReg(originalId);
+                          }}
+                          className="px-4 py-2.5 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs font-bold uppercase hover:bg-red-500/20 transition-all cursor-pointer text-center"
+                        >
+                          Delete Roster
+                        </button>
+                      </div>
 
-                      <button
-                        onClick={handleSaveRegEdit}
-                        className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-gold-500 to-amber-600 text-neutral-950 text-xs font-black uppercase tracking-widest shadow-lg hover:brightness-110 active:scale-95 transition-all cursor-pointer text-center"
-                      >
-                        Save Changes
-                      </button>
+                      <div className="flex gap-3">
+                        <button
+                          type="button"
+                          onClick={() => setEditingReg(null)}
+                          className="px-4 py-2.5 rounded-xl border border-white/10 text-neutral-400 hover:text-white text-xs font-bold uppercase transition-all cursor-pointer text-center"
+                        >
+                          Cancel
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={handleSaveRegEdit}
+                          className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-gold-500 to-amber-600 text-neutral-950 text-xs font-black uppercase tracking-widest shadow-lg hover:brightness-110 active:scale-95 transition-all cursor-pointer text-center"
+                        >
+                          Save Changes
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -4760,7 +4902,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
 
         {/* VIEW: BANNER MANAGEMENT */}
         {activeTab === 'banner_management' && (
-          <AdminBannerManagementTab />
+          <AdminBannerManagementTab showConfirm={showConfirm} />
         )}
 
         {/* VIEW: BONUS MANAGEMENT */}
@@ -4770,7 +4912,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
 
         {/* VIEW: GAME CATEGORIES MANAGEMENT */}
         {activeTab === 'game_categories' && (
-          <AdminCategoriesTab />
+          <AdminCategoriesTab showConfirm={showConfirm} />
         )}
 
         {/* VIEW 11: SUPPORT WIDGET SETTINGS */}
@@ -4785,17 +4927,17 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
 
         {/* VIEW: STORAGE MANAGER */}
         {activeTab === 'storage_manager' && (
-          <StorageManager />
+          <StorageManager showConfirm={showConfirm} />
         )}
 
         {/* VIEW: WEEKLY TOP PLAYERS LEADERBOARD MANAGER */}
         {activeTab === 'weekly_leaderboard_manager' && (
-          <WeeklyTopPlayersManager />
+          <WeeklyTopPlayersManager showConfirm={showConfirm} />
         )}
 
         {/* VIEW: WINNINGS & CHAMPIONS MANAGER */}
         {activeTab === 'winnings_manager' && (
-          <AdminWinningsManager />
+          <AdminWinningsManager showConfirm={showConfirm} />
         )}
 
         </div>

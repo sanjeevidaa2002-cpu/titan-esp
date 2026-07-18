@@ -399,6 +399,17 @@ export interface TournamentWinner {
   pinned: boolean;
   displayOrder: number;
   createdAt?: string;
+  
+  // Database fields requested
+  winnerId?: string;
+  tournamentId?: string;
+  position?: string;
+  prizeAmount?: number;
+  userId?: string;
+  username?: string;
+  gameName?: string;
+  gameUid?: string;
+  profilePhoto?: string;
 }
 
 export interface HomepageBanner {
@@ -502,4 +513,20 @@ export interface StorageSettings {
   updatedAt?: number;
   updatedBy?: string;
 }
+
+export interface ContactWidgetSettings {
+  whatsappIconUrl: string;
+  telegramIconUrl: string;
+  whatsappLink: string;
+  telegramLink: string;
+  widgetEnabled: boolean;
+  iconSize: 'small' | 'medium' | 'large';
+  iconPosition: 'bottom-right' | 'bottom-left';
+  updatedAt: number;
+  whatsappUploadedUrl?: string;
+  whatsappDirectUrl?: string;
+  telegramUploadedUrl?: string;
+  telegramDirectUrl?: string;
+}
+
 

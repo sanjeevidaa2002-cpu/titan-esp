@@ -118,6 +118,30 @@
         "createdAt": { "type": "string" }
       },
       "required": ["id", "name", "uid", "gameCategory", "tournamentName", "rank", "prizeWon"]
+    },
+    "Tournament": {
+      "title": "Tournament",
+      "description": "Information about a game tournament / match.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "gameName": { "type": "string", "enum": ["Free Fire", "PUBG Mobile", "Hacker Match"] },
+        "category": { "type": "string", "enum": ["BR", "CS"] },
+        "matchType": { "type": "string", "enum": ["Solo", "Duo", "Squad"] },
+        "entryFee": { "type": "number" },
+        "prizePool": { "type": "number" },
+        "perKillPrize": { "type": "number" },
+        "map": { "type": "string" },
+        "dateTime": { "type": "string" },
+        "roomStatus": { "type": "string" },
+        "mode": { "type": "string" },
+        "totalSlots": { "type": "number" },
+        "isFreeMatch": { "type": "boolean" },
+        "rules": { "type": "array" },
+        "enabled": { "type": "boolean" }
+      },
+      "required": ["id", "title", "gameName", "category", "matchType"]
     }
   },
   "firestore": {
@@ -132,6 +156,10 @@
     "/winners/{winnerId}": {
       "schema": "TournamentWinner",
       "description": "Collection of all tournament winners."
+    },
+    "/tournaments/{tournamentId}": {
+      "schema": "Tournament",
+      "description": "Collection of all tournaments."
     }
   }
 }

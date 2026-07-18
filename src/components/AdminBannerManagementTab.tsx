@@ -7,7 +7,7 @@ import { HomepageBanner } from '../types';
 import { uploadFileWithFallback } from '../utils/uploadHelper';
 import { MediaPickerModal } from './MediaPickerModal';
 
-export const AdminBannerManagementTab: React.FC = () => {
+export const AdminBannerManagementTab: React.FC<{ showConfirm?: (title: string, message: string, onConfirm: () => void | Promise<void>) => void }> = ({ showConfirm }) => {
   const { homepageBanners, saveHomepageBannerAdmin, deleteHomepageBannerAdmin } = useGame();
   
   const [editingBanner, setEditingBanner] = useState<Partial<HomepageBanner> | null>(null);
@@ -32,8 +32,18 @@ export const AdminBannerManagementTab: React.FC = () => {
   };
 
   const handleDelete = async (id: string) => {
-    if (window.confirm("Are you sure you want to delete this banner?")) {
+    const performDelete = async () => {
       await deleteHomepageBannerAdmin(id);
+    };
+
+    if (showConfirm) {
+      showConfirm(
+        "Confirm Deletion",
+        "Are you sure you want to permanently delete this banner? This action cannot be undone.",
+        performDelete
+      );
+    } else if (window.confirm("Are you sure you want to delete this banner?")) {
+      await performDelete();
     }
   };
 
