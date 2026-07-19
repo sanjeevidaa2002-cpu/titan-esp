@@ -1,3 +1,4 @@
+/// <reference types="vite/client" />
 /**
  * @license
  * SPDX-License-Identifier: Apache-2.0
@@ -19,30 +20,29 @@ import {
 } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 
-// Injected config from firebase-applet-config.json
-const firebaseConfig = {
-  apiKey: "AIzaSyAAUjOz09JI4PX6_PiVey1QTRMPMcol73E",
-  authDomain: "gen-lang-client-0214369161.firebaseapp.com",
-  projectId: "gen-lang-client-0214369161",
-  storageBucket: "gen-lang-client-0214369161.firebasestorage.app",
-  messagingSenderId: "87360915147",
-  appId: "1:87360915147:web:3e7251f42a24fcfe69bd4e"
-};
+// Silence internal SDK logs early to prevent gRPC connection warnings in logs
+setLogLevel('silent');
 
-// Initialize Firebase App
+// Injected config from firebase-applet-config.json
+import firebaseConfig from '../firebase-applet-config.json';
+
 const app = initializeApp(firebaseConfig);
 
-// Initialize Firestore with specific database ID if provided, otherwise default
-const firestoreDatabaseId = "ai-studio-22a89eb0-4b83-4567-8432-43908d6700dc";
+// Initialize Firestore with specific database ID if provided
+const firestoreDbId = (firebaseConfig as any).firestoreDatabaseId && (firebaseConfig as any).firestoreDatabaseId !== '(default)' 
+  ? (firebaseConfig as any).firestoreDatabaseId 
+  : undefined;
+
+console.log("[Firebase] Using Firestore DB ID:", firestoreDbId || "(default)");
+
 const db = initializeFirestore(app, {
   experimentalForceLongPolling: true,
   ignoreUndefinedProperties: true,
-}, firestoreDatabaseId);
-
+}, firestoreDbId);
 const storage = getStorage(app);
 
 // Silence internal SDK logs to maintain clean logs and handle connectivity fallback beautifully
-setLogLevel('silent');
+// setLogLevel('silent'); // Already set at top
 
 const auth = getAuth(app);
 // Ensure auth persistence is set to local
