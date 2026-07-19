@@ -68,26 +68,34 @@ export const Auth: React.FC<{ initialMode?: 'login' | 'signup',  }> = ({ initial
           setLocalErr("Passwords do not match.");
           setLoading(false); return;
         }
+        console.log("[AuthUI] Triggering registration...");
         await registerWithCredentials(username, mobile, password, refCode.trim());
+        console.log("[AuthUI] Registration call finished");
       } else {
         if (!usernameOrMobile.trim()) {
           setLocalErr("Please enter your Username or Mobile Number.");
           setLoading(false); return;
         }
+        console.log("[AuthUI] Triggering login...");
         await loginWithCredentials(usernameOrMobile, password);
+        console.log("[AuthUI] Login call finished");
       }
     } catch (err: any) {
-      console.warn("Auth failed:");
+      console.error("[AuthUI] Auth operation failed:", err);
       
       const errorCode = err?.code || '';
       const errorMessage = err?.message || '';
 
-      if (errorCode === 'auth/wrong-password' || errorMessage.includes('wrong-password') || errorMessage.includes('invalid-credential') || errorMessage.includes('not found')) {
-        setLocalErr("Incorrect password or user not found. Please verify your credentials and try again.");
+      if (errorCode === 'auth/wrong-password' || errorMessage.toLowerCase().includes('password')) {
+        setLocalErr("Incorrect password. Please verify and try again.");
+      } else if (errorMessage.toLowerCase().includes('not found') || errorMessage.toLowerCase().includes('user')) {
+        setLocalErr("User not found or credentials invalid.");
+      } else if (errorMessage.toLowerCase().includes('network') || errorMessage.toLowerCase().includes('unavailable')) {
+        setLocalErr("Network connection failed. Please check your internet and try again.");
       } else if (errorMessage) {
-        setLocalErr(errorMessage);
+        setLocalErr(`Error: ${errorMessage}`);
       } else {
-        setLocalErr("An unknown error occurred.");
+        setLocalErr("An unexpected authentication error occurred.");
       }
     } finally {
       setLoading(false);
@@ -100,13 +108,13 @@ export const Auth: React.FC<{ initialMode?: 'login' | 'signup',  }> = ({ initial
     try {
       await loginWithGoogle();
     } catch (err: any) {
-      console.error("Google Auth failed:");
+      console.error("Google Auth failed:", err);
       let friendlyMessage = err?.message || "Google Authentication failed.";
       
       if (err?.code === 'auth/popup-closed-by-user') {
         friendlyMessage = "Google Sign-In was cancelled. The window was closed before completion.";
       } else if (err?.code === 'auth/unauthorized-domain' || friendlyMessage.includes('unauthorized-domain') || friendlyMessage.includes('authDomain')) {
-        friendlyMessage = "This domain is not authorized for Google Sign-In. Please add this domain to the Firebase Console Authorized Domains list.";
+        friendlyMessage = "This domain is not authorized for Google Sign-In. Please add " + window.location.hostname + " to the Firebase Console Authorized Domains list.";
       } else if (err?.code === 'auth/network-request-failed') {
         friendlyMessage = "Network error. Please check your internet connection.";
       } else if (err?.code === 'auth/invalid-oauth-client-id') {
