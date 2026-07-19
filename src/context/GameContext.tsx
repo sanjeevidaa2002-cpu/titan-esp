@@ -206,32 +206,52 @@ const DEFAULT_LOADING_SCREEN: LoadingScreenSettings = {
   // Helper: Create initial database structure (Seed Data) if empty in Firestore
   const checkAndSeedDatabase = async (): Promise<boolean> => {
     try {
-      const tournCol = collection(db, 'tournaments');
-      const tournSnap = await getDocs(tournCol);
+      console.log("[GameContext] Checking database state...");
+      
+      // Parallelize all initial collection/doc checks
+      console.log("[GameContext] Starting initial document checks...");
+      const [
+        tournSnap,
+        testRegSnap,
+        lbSnap,
+        notSnap,
+        catSnap,
+        wpSnap,
+        wlcSnap,
+        tUpcomingSnap
+      ] = await Promise.all([
+        getDocs(collection(db, 'tournaments')).catch(err => { console.error("Error reading tournaments:", err); throw err; }),
+        getDoc(doc(db, 'registrations', 'REG-882930')).catch(err => { console.error("Error reading registration:", err); throw err; }),
+        getDocs(collection(db, 'leaderboard')).catch(err => { console.error("Error reading leaderboard:", err); throw err; }),
+        getDocs(collection(db, 'notifications')).catch(err => { console.error("Error reading notifications:", err); throw err; }),
+        getDocs(collection(db, 'categories')).catch(err => { console.error("Error reading categories:", err); throw err; }),
+        getDocs(collection(db, 'weekly_players')).catch(err => { console.error("Error reading weekly_players:", err); throw err; }),
+        getDoc(doc(db, 'settings', 'weekly_leaderboard')).catch(err => { console.error("Error reading settings/weekly_leaderboard:", err); throw err; }),
+        getDoc(doc(db, 'tournaments', 't_upcoming_1')).catch(err => { console.error("Error reading tournaments/t_upcoming_1:", err); throw err; })
+      ]);
+      console.log("[GameContext] Initial document checks complete.");
+
+      const seedPromises: Promise<any>[] = [];
+
+      // 1. Tournaments
       if (tournSnap.empty) {
         console.log("Seeding Firestore with initial tournaments...");
-        for (const t of MOCK_TOURNAMENTS) {
-          await setDoc(doc(db, 'tournaments', t.id), t);
-        }
-      } else {
-        // Always ensure t_upcoming_1 is up to date with joinedTeams / rosters
-        const tUpcomingRef = doc(db, 'tournaments', 't_upcoming_1');
-        const tUpcomingSnap = await getDoc(tUpcomingRef);
-        if (tUpcomingSnap.exists()) {
-          const currentData = tUpcomingSnap.data();
-          if (!currentData.joinedTeams || currentData.joinedTeams.length === 0 || currentData.joinedSlots.length < 16) {
-            const updatedTournamentInfo = MOCK_TOURNAMENTS.find(m => m.id === 't_upcoming_1');
-            if (updatedTournamentInfo) {
-              console.log("Updating Firestore t_upcoming_1 with detailed squad teams...");
-              await setDoc(tUpcomingRef, updatedTournamentInfo, { merge: true });
-            }
+        MOCK_TOURNAMENTS.forEach(t => {
+          seedPromises.push(setDoc(doc(db, 'tournaments', t.id), t));
+        });
+      } else if (tUpcomingSnap.exists()) {
+        // Update t_upcoming_1 if needed
+        const currentData = tUpcomingSnap.data();
+        if (!currentData.joinedTeams || currentData.joinedTeams.length === 0 || (currentData.joinedSlots && currentData.joinedSlots.length < 16)) {
+          const updatedTournamentInfo = MOCK_TOURNAMENTS.find(m => m.id === 't_upcoming_1');
+          if (updatedTournamentInfo) {
+            console.log("Updating Firestore t_upcoming_1...");
+            seedPromises.push(setDoc(doc(db, 'tournaments', 't_upcoming_1'), updatedTournamentInfo, { merge: true }));
           }
         }
       }
 
-      // Seed detailed registrations for TITAN ESP Grand Cup - Bermuda Squad if missing
-      const testRegRef = doc(db, 'registrations', 'REG-882930');
-      const testRegSnap = await getDoc(testRegRef);
+      // 2. Registrations
       if (!testRegSnap.exists()) {
         console.log("Seeding Firestore with squad team registrations...");
         const squadRegistrations: PlayerRegistration[] = [
@@ -328,278 +348,277 @@ const DEFAULT_LOADING_SCREEN: LoadingScreenSettings = {
             governmentName: 'Karan Singh'
           }
         ];
-        for (const reg of squadRegistrations) {
-          await setDoc(doc(db, 'registrations', reg.id), reg);
-        }
+        squadRegistrations.forEach(reg => {
+          seedPromises.push(setDoc(doc(db, 'registrations', reg.id), reg));
+        });
       }
 
-      const lbCol = collection(db, 'leaderboard');
-      const lbSnap = await getDocs(lbCol);
+      // 3. Leaderboard
       if (lbSnap.empty) {
         console.log("Seeding Firestore with leaderboard entries...");
-        for (const entry of MOCK_LEADERBOARD) {
-          await setDoc(doc(db, 'leaderboard', entry.userId), entry);
-        }
+        MOCK_LEADERBOARD.forEach(entry => {
+          seedPromises.push(setDoc(doc(db, 'leaderboard', entry.userId), entry));
+        });
       }
 
-      const notCol = collection(db, 'notifications');
-      const notSnap = await getDocs(notCol);
+      // 4. Notifications
       if (notSnap.empty) {
         console.log("Seeding Firestore with announcements...");
-        for (const n of MOCK_NOTIFICATIONS) {
-          await setDoc(doc(db, 'notifications', n.id), n);
-        }
+        MOCK_NOTIFICATIONS.forEach(n => {
+          seedPromises.push(setDoc(doc(db, 'notifications', n.id), n));
+        });
       }
 
-      const catCol = collection(db, 'categories');
-      const catSnap = await getDocs(catCol);
+      // 5. Categories
       if (catSnap.empty) {
         console.log("Seeding Firestore with categories...");
-        for (const cat of DEFAULT_CATEGORIES) {
-          await setDoc(doc(db, 'categories', cat.id), cat);
-        }
-      } else {
-        console.log("Categories exist. Checking for missing required categories...");
-        for (const cat of DEFAULT_CATEGORIES) {
-          const catRef = doc(db, 'categories', cat.id);
-          const catDoc = await getDoc(catRef);
-          if (!catDoc.exists()) {
-            console.log(`Seeding missing category: ${cat.id}`);
-            await setDoc(catRef, cat);
-          }
-        }
+        DEFAULT_CATEGORIES.forEach(cat => {
+          seedPromises.push(setDoc(doc(db, 'categories', cat.id), cat));
+        });
       }
 
-      const wpCol = collection(db, 'weekly_players');
-      const wpSnap = await getDocs(wpCol);
+      // 6. Weekly Players
       if (wpSnap.empty) {
         console.log("Seeding Firestore with weekly players...");
-        for (const player of SEED_WEEKLY_PLAYERS) {
-          await setDoc(doc(db, 'weekly_players', player.id), player);
-        }
+        SEED_WEEKLY_PLAYERS.forEach(player => {
+          seedPromises.push(setDoc(doc(db, 'weekly_players', player.id), player));
+        });
       }
 
-      const wlcDoc = doc(db, 'settings', 'weekly_leaderboard');
-      const wlcSnap = await getDoc(wlcDoc);
+      // 7. Weekly Leaderboard Config
       if (!wlcSnap.exists()) {
         console.log("Seeding Firestore with weekly leaderboard configuration...");
-        await setDoc(wlcDoc, DEFAULT_WEEKLY_LEADERBOARD_CONFIG);
+        seedPromises.push(setDoc(doc(db, 'settings', 'weekly_leaderboard'), DEFAULT_WEEKLY_LEADERBOARD_CONFIG));
+      }
+
+      // Execute all seeding concurrently if any
+      if (seedPromises.length > 0) {
+        console.log(`[GameContext] Executing ${seedPromises.length} seed operations...`);
+        await Promise.all(seedPromises.map(p => p.catch(err => {
+          console.error("Seed operation failed:", err);
+          throw err;
+        })));
+        console.log("[GameContext] Seeding complete.");
       }
 
       return true;
-    } catch (e) {
-      console.warn("Seeding failed or permission denied, using memory-state. Error:");
-      setUseLocalFallback(true);
+    } catch (e: any) {
+      console.warn("Database seeding failed or timed out:", e);
       return false;
     }
   };
 
   // Sync state with Firestore in real-time, or use local state if fallback is active
   useEffect(() => {
-    checkAndSeedDatabase().then((success) => {
-      const handleSnapshotError = (err: any, context: string) => {
-        console.warn(`${context} sync error: Firebase unavailable (Quota exceeded or permissions). Switching to local state.`);
-        if (err?.code === 'resource-exhausted' || err?.message?.includes('Quota limit exceeded')) {
-          console.error("Firebase quota exceeded, switching to local fallback mode.");
-          setUseLocalFallback(true);
-        }
-      };
+    let isMounted = true;
+    const unsubs: (() => void)[] = [];
 
-      if (!success || useLocalFallback) {
-        setLoading(false);
-        return;
-      }
-
-      // Realtime tournaments listener
-      const unsubTournaments = onSnapshot(collection(db, 'tournaments'), 
-        (snapshot) => {
-          const list: Tournament[] = [];
-          snapshot.forEach((doc) => {
-            list.push({ id: doc.id, ...doc.data() } as Tournament);
-          });
-          setTournaments(list);
-        },
-        (err) => handleSnapshotError(err, "Tournaments")
-      );
-
-      // Realtime bonus listener
-      const unsubBonusSettings = onSnapshot(doc(db, 'appSettings', 'bonus'), (docSnap) => {
-        if (docSnap.exists()) {
-          setBonusSettings(docSnap.data());
-        } else {
-          setBonusSettings(null);
-        }
-      }, (err) => handleSnapshotError(err, "Bonus"));
-
-      // Realtime leaderboard listener
-      const unsubLeaderboard = onSnapshot(collection(db, 'leaderboard'),
-        (snapshot) => {
-          const list: LeaderboardEntry[] = [];
-          snapshot.forEach((doc) => {
-            list.push(doc.data() as LeaderboardEntry);
-          });
-          setLeaderboard(list.length > 0 ? list.sort((a,b) => b.totalEarnings - a.totalEarnings) : MOCK_LEADERBOARD);
-        },
-        (err) => {
-          console.warn("Leaderboard sync error: Firebase unavailable.");
-          setUseLocalFallback(true);
-        }
-      );
-
-      // Realtime notifications listener
-      const unsubNotifications = onSnapshot(collection(db, 'notifications'),
-        (snapshot) => {
-          const list: AppNotification[] = [];
-          snapshot.forEach((doc) => {
-            list.push({ id: doc.id, ...doc.data() } as AppNotification);
-          });
-          setNotifications(list.length > 0 ? list : MOCK_NOTIFICATIONS);
-        }, (err) => handleSnapshotError(err, "Notifications")
-      );
-
-
-
-      // Realtime branding settings listener
-      const unsubBranding = onSnapshot(doc(db, 'settings', 'branding'), (docSnap) => {
-        if (docSnap.exists()) {
-          setBrandingSettings(docSnap.data() as BrandingSettings);
-        } else {
-          setDoc(doc(db, 'settings', 'branding'), DEFAULT_BRANDING).catch(console.error);
-          setBrandingSettings(DEFAULT_BRANDING);
-        }
-      }, (err) => handleSnapshotError(err, "Branding"));
-
-      // Realtime loading screen settings listener
-      const unsubLoadingScreen = onSnapshot(doc(db, "loading_settings", "config"), (docSnap) => {
-        if (docSnap.exists()) {
-          setLoadingScreenSettings(docSnap.data() as LoadingScreenSettings);
-        } else {
-          setLoadingScreenSettings(DEFAULT_LOADING_SCREEN);
-        }
-      }, (err) => handleSnapshotError(err, "LoadingScreen"));
-
-      // Realtime support settings listener
-      const unsubSupport = onSnapshot(doc(db, 'support_settings', 'config'), (docSnap) => {
-        if (docSnap.exists()) {
-          setSupportSettings(docSnap.data() as SupportSettings);
-        } else {
-          setSupportSettings(DEFAULT_SUPPORT_SETTINGS);
-        }
-      }, (err) => handleSnapshotError(err, "Support"));
-
-      // Realtime contact widget settings listener
-      const unsubContactWidget = onSnapshot(doc(db, 'contact_widget_settings', 'config'), (docSnap) => {
-        if (docSnap.exists()) {
-          setContactWidgetSettings(docSnap.data() as ContactWidgetSettings);
-        } else {
-          setContactWidgetSettings(DEFAULT_CONTACT_WIDGET_SETTINGS);
-        }
-      }, (err) => handleSnapshotError(err, "ContactWidget"));
-
-      // Realtime categories listener
-      const unsubCategories = onSnapshot(collection(db, 'categories'), (snapshot) => {
-        const list: GameCategory[] = [];
-        snapshot.forEach((doc) => {
-          list.push({ id: doc.id, ...doc.data() } as GameCategory);
-        });
-        setCategories(list.length > 0 ? list : DEFAULT_CATEGORIES);
-      }, (err) => handleSnapshotError(err, "Categories"));
-
-      // Realtime weekly players listener
-      const unsubWeeklyPlayers = onSnapshot(collection(db, 'weekly_players'), (snapshot) => {
-        const list: WeeklyPlayer[] = [];
-        snapshot.forEach((doc) => {
-          list.push({ id: doc.id, ...doc.data() } as WeeklyPlayer);
-        });
-        setWeeklyPlayers(list);
-      }, (err) => handleSnapshotError(err, "WeeklyPlayers"));
-
-      // Realtime winners listener
-      const unsubWinners = onSnapshot(collection(db, 'winners'), (snapshot) => {
-        const list: TournamentWinner[] = [];
-        snapshot.forEach((doc) => {
-          list.push({ id: doc.id, ...doc.data() } as TournamentWinner);
-        });
-        setWinners(list.length > 0 ? list : SEED_WINNERS);
-      }, (err) => handleSnapshotError(err, "Winners"));
-
-      // Realtime weekly leaderboard config listener
-      const unsubWeeklyLeaderboardConfig = onSnapshot(doc(db, 'settings', 'weekly_leaderboard'), (docSnap) => {
-        if (docSnap.exists()) {
-          setWeeklyLeaderboardConfig(docSnap.data() as WeeklyLeaderboardConfig);
-        } else {
-          setWeeklyLeaderboardConfig(DEFAULT_WEEKLY_LEADERBOARD_CONFIG);
-        }
-      }, (err) => handleSnapshotError(err, "WeeklyLeaderboardConfig"));
-
-      // Realtime homepage banners listener
-      const unsubBanners = onSnapshot(collection(db, 'homepage_banners'), (snapshot) => {
-        const list: HomepageBanner[] = [];
-        snapshot.forEach((doc) => {
-          list.push({ id: doc.id, ...doc.data() } as HomepageBanner);
-        });
-        setHomepageBanners(list);
-      }, (err) => handleSnapshotError(err, "Banners"));
-
-      // Realtime storage files listener
-      const unsubStorageFiles = onSnapshot(collection(db, 'storage_files'), (snapshot) => {
-        const list: StorageFile[] = [];
-        snapshot.forEach((doc) => {
-          list.push({ id: doc.id, ...doc.data() } as StorageFile);
-        });
-        setStorageFiles(list);
-      }, (err) => handleSnapshotError(err, "StorageFiles"));
-
-      // Realtime promo settings listener
-      const unsubPromoSettings = onSnapshot(doc(db, 'settings', 'promo'), (docSnap) => {
-        if (docSnap.exists()) {
-          setPromoSettings(docSnap.data() as PromoSettings);
-        } else {
-          setPromoSettings(DEFAULT_PROMO_SETTINGS);
-        }
-      }, (err) => handleSnapshotError(err, "PromoSettings"));
+    const initApp = async () => {
+      console.log("[GameContext] Initializing...");
       
-      // Realtime notification settings listener
-      const unsubNotificationSettings = onSnapshot(doc(db, 'settings', 'notifications'), (docSnap) => {
-        if (docSnap.exists()) {
-          setNotificationSettings(docSnap.data() as NotificationSettings);
-        } else {
-          setNotificationSettings(DEFAULT_NOTIFICATION_SETTINGS);
+      const timeoutPromise = new Promise<boolean>((_, reject) => 
+        setTimeout(() => reject(new Error("Timeout during initialization")), 25000)
+      );
+
+      try {
+        if (useLocalFallback) {
+          console.log("[GameContext] Using local fallback, skipping Firestore init");
+          setLoading(false);
+          return;
         }
-      }, (err) => handleSnapshotError(err, "NotificationSettings"));
 
-      // Realtime storage settings listener
-      const unsubStorageSettings = onSnapshot(doc(db, 'settings', 'storage'), (docSnap) => {
-        if (docSnap.exists()) {
-          setStorageSettings(docSnap.data() as StorageSettings);
-        } else {
-          setStorageSettings({ provider: 'firebase' });
+        // Try to check database state, but don't let it block the entire app forever
+        let success = false;
+        try {
+          console.log("[GameContext] Starting database check...");
+          success = await Promise.race([
+            checkAndSeedDatabase(),
+            timeoutPromise
+          ]);
+          console.log("[GameContext] Database check completed, success:", success);
+        } catch (dbErr) {
+          console.warn("[GameContext] Database check failed or timed out, proceeding anyway:", dbErr);
+          // We proceed anyway; if listeners fail, handleSnapshotError will trigger fallback
+          success = true; 
         }
-      }, (err) => handleSnapshotError(err, "StorageSettings"));
+        
+        if (!isMounted) return;
 
-      setLoading(false);
+        const handleSnapshotError = (err: any, context: string) => {
+          console.warn(`${context} sync error: Firebase unavailable.`, err);
+          // Only switch to local fallback for critical quota issues
+          if (err?.code === 'resource-exhausted' || err?.message?.includes('Quota limit exceeded')) {
+            console.error("[GameContext] Critical quota error detected");
+            setUseLocalFallback(true);
+          }
+        };
 
-      return () => {
-        unsubNotificationSettings();
-        unsubPromoSettings();
-        unsubTournaments();
-        unsubBonusSettings();
-        unsubLeaderboard();
-        unsubNotifications();
-        unsubBranding();
-        unsubLoadingScreen();
-        unsubSupport();
-        unsubContactWidget();
-        unsubCategories();
-        unsubWeeklyPlayers();
-        unsubWinners();
-        unsubWeeklyLeaderboardConfig();
-        unsubBanners();
-        unsubStorageFiles();
-        unsubStorageSettings();
-      };
-    });
+        // Setup real-time listeners and store unsubs
+        console.log("[GameContext] Setting up listeners...");
+        unsubs.push(onSnapshot(collection(db, 'tournaments'), 
+          (snapshot) => {
+            const list: Tournament[] = [];
+            snapshot.forEach((doc) => {
+              list.push({ id: doc.id, ...doc.data() } as Tournament);
+            });
+            setTournaments(list);
+          },
+          (err) => handleSnapshotError(err, "Tournaments")
+        ));
 
+        unsubs.push(onSnapshot(doc(db, 'appSettings', 'bonus'), (docSnap) => {
+          if (docSnap.exists()) {
+            setBonusSettings(docSnap.data());
+          } else {
+            setBonusSettings(null);
+          }
+        }, (err) => handleSnapshotError(err, "Bonus")));
+
+        unsubs.push(onSnapshot(collection(db, 'leaderboard'),
+          (snapshot) => {
+            const list: LeaderboardEntry[] = [];
+            snapshot.forEach((doc) => {
+              list.push(doc.data() as LeaderboardEntry);
+            });
+            setLeaderboard(list.length > 0 ? list.sort((a,b) => b.totalEarnings - a.totalEarnings) : MOCK_LEADERBOARD);
+          },
+          (err) => {
+            console.warn("Leaderboard sync error: Firebase unavailable.");
+            setUseLocalFallback(true);
+          }
+        ));
+
+        unsubs.push(onSnapshot(collection(db, 'notifications'),
+          (snapshot) => {
+            const list: AppNotification[] = [];
+            snapshot.forEach((doc) => {
+              list.push({ id: doc.id, ...doc.data() } as AppNotification);
+            });
+            setNotifications(list.length > 0 ? list : MOCK_NOTIFICATIONS);
+          }, (err) => handleSnapshotError(err, "Notifications")
+        ));
+
+        unsubs.push(onSnapshot(doc(db, 'settings', 'branding'), (docSnap) => {
+          if (docSnap.exists()) {
+            setBrandingSettings(docSnap.data() as BrandingSettings);
+          } else {
+            setDoc(doc(db, 'settings', 'branding'), DEFAULT_BRANDING).catch(console.error);
+            setBrandingSettings(DEFAULT_BRANDING);
+          }
+        }, (err) => handleSnapshotError(err, "Branding")));
+
+        unsubs.push(onSnapshot(doc(db, "loading_settings", "config"), (docSnap) => {
+          if (docSnap.exists()) {
+            setLoadingScreenSettings(docSnap.data() as LoadingScreenSettings);
+          } else {
+            setLoadingScreenSettings(DEFAULT_LOADING_SCREEN);
+          }
+        }, (err) => handleSnapshotError(err, "LoadingScreen")));
+
+        unsubs.push(onSnapshot(doc(db, 'support_settings', 'config'), (docSnap) => {
+          if (docSnap.exists()) {
+            setSupportSettings(docSnap.data() as SupportSettings);
+          } else {
+            setSupportSettings(DEFAULT_SUPPORT_SETTINGS);
+          }
+        }, (err) => handleSnapshotError(err, "Support")));
+
+        unsubs.push(onSnapshot(doc(db, 'contact_widget_settings', 'config'), (docSnap) => {
+          if (docSnap.exists()) {
+            setContactWidgetSettings(docSnap.data() as ContactWidgetSettings);
+          } else {
+            setContactWidgetSettings(DEFAULT_CONTACT_WIDGET_SETTINGS);
+          }
+        }, (err) => handleSnapshotError(err, "ContactWidget")));
+
+        unsubs.push(onSnapshot(collection(db, 'categories'), (snapshot) => {
+          const list: GameCategory[] = [];
+          snapshot.forEach((doc) => {
+            list.push({ id: doc.id, ...doc.data() } as GameCategory);
+          });
+          setCategories(list.length > 0 ? list : DEFAULT_CATEGORIES);
+        }, (err) => handleSnapshotError(err, "Categories")));
+
+        unsubs.push(onSnapshot(collection(db, 'weekly_players'), (snapshot) => {
+          const list: WeeklyPlayer[] = [];
+          snapshot.forEach((doc) => {
+            list.push({ id: doc.id, ...doc.data() } as WeeklyPlayer);
+          });
+          setWeeklyPlayers(list);
+        }, (err) => handleSnapshotError(err, "WeeklyPlayers")));
+
+        unsubs.push(onSnapshot(collection(db, 'winners'), (snapshot) => {
+          const list: TournamentWinner[] = [];
+          snapshot.forEach((doc) => {
+            list.push({ id: doc.id, ...doc.data() } as TournamentWinner);
+          });
+          setWinners(list.length > 0 ? list : SEED_WINNERS);
+        }, (err) => handleSnapshotError(err, "Winners")));
+
+        unsubs.push(onSnapshot(doc(db, 'settings', 'weekly_leaderboard'), (docSnap) => {
+          if (docSnap.exists()) {
+            setWeeklyLeaderboardConfig(docSnap.data() as WeeklyLeaderboardConfig);
+          } else {
+            setWeeklyLeaderboardConfig(DEFAULT_WEEKLY_LEADERBOARD_CONFIG);
+          }
+        }, (err) => handleSnapshotError(err, "WeeklyLeaderboardConfig")));
+
+        unsubs.push(onSnapshot(collection(db, 'homepage_banners'), (snapshot) => {
+          const list: HomepageBanner[] = [];
+          snapshot.forEach((doc) => {
+            list.push({ id: doc.id, ...doc.data() } as HomepageBanner);
+          });
+          setHomepageBanners(list);
+        }, (err) => handleSnapshotError(err, "Banners")));
+
+        unsubs.push(onSnapshot(collection(db, 'storage_files'), (snapshot) => {
+          const list: StorageFile[] = [];
+          snapshot.forEach((doc) => {
+            list.push({ id: doc.id, ...doc.data() } as StorageFile);
+          });
+          setStorageFiles(list);
+        }, (err) => handleSnapshotError(err, "StorageFiles")));
+
+        unsubs.push(onSnapshot(doc(db, 'settings', 'promo'), (docSnap) => {
+          if (docSnap.exists()) {
+            setPromoSettings(docSnap.data() as PromoSettings);
+          } else {
+            setPromoSettings(DEFAULT_PROMO_SETTINGS);
+          }
+        }, (err) => handleSnapshotError(err, "PromoSettings")));
+        
+        unsubs.push(onSnapshot(doc(db, 'settings', 'notifications'), (docSnap) => {
+          if (docSnap.exists()) {
+            setNotificationSettings(docSnap.data() as NotificationSettings);
+          } else {
+            setNotificationSettings(DEFAULT_NOTIFICATION_SETTINGS);
+          }
+        }, (err) => handleSnapshotError(err, "NotificationSettings")));
+
+        unsubs.push(onSnapshot(doc(db, 'settings', 'storage'), (docSnap) => {
+          if (docSnap.exists()) {
+            setStorageSettings(docSnap.data() as StorageSettings);
+          } else {
+            setStorageSettings({ provider: 'firebase' });
+          }
+        }, (err) => handleSnapshotError(err, "StorageSettings")));
+
+        setLoading(false);
+      } catch (err) {
+        console.error("[GameContext] Initialization failed:", err);
+        if (isMounted) {
+          setUseLocalFallback(true);
+          setLoading(false);
+        }
+      }
+    };
+
+    initApp();
+
+    return () => {
+      isMounted = false;
+      unsubs.forEach(unsub => unsub());
+    };
   }, [useLocalFallback]);
 
   // Handle Redirect Result on Mount
@@ -941,13 +960,20 @@ const DEFAULT_LOADING_SCREEN: LoadingScreenSettings = {
   // Auth Operations
   const hashPassword = async (password: string): Promise<string> => {
     try {
+      console.log("[Auth] Hashing password...");
+      if (!window.crypto || !window.crypto.subtle) {
+        console.warn("[Auth] crypto.subtle not available, using fallback");
+        throw new Error("subtle_crypto_missing");
+      }
       const encoder = new TextEncoder();
       const data = encoder.encode(password);
       const hashBuffer = await crypto.subtle.digest('SHA-256', data);
       const hashArray = Array.from(new Uint8Array(hashBuffer));
-      return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+      const hash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+      console.log("[Auth] Password hashed");
+      return hash;
     } catch (err) {
-      console.error("SHA-256 hashing failed, using fallback hash:");
+      console.warn("[Auth] SHA-256 hashing failed, using fallback hash:", err);
       let hash = 0;
       for (let i = 0; i < password.length; i++) {
         const char = password.charCodeAt(i);
@@ -972,65 +998,81 @@ const DEFAULT_LOADING_SCREEN: LoadingScreenSettings = {
 
   const loginWithCredentials = async (usernameOrMobile: string, pass: string) => {
     setError(null);
-    try {
-      if (useLocalFallback) {
-        throw new Error("Local fallback not supported for credentials login.");
-      }
+    console.log("[Auth] Login attempt for:", usernameOrMobile);
 
-      // Find the user by username or mobile
-      let userDoc = null;
-      let userDocId = null;
-      const usersRef = collection(db, 'users');
-      
-      const qUsername = query(usersRef, where('username', '==', usernameOrMobile));
-      const snapUsername = await getDocs(qUsername);
-      if (!snapUsername.empty) {
-        userDoc = snapUsername.docs[0].data();
-        userDocId = snapUsername.docs[0].id;
-      } else {
-        const qNickname = query(usersRef, where('nickname', '==', usernameOrMobile));
-        const snapNickname = await getDocs(qNickname);
-        if (!snapNickname.empty) {
-          userDoc = snapNickname.docs[0].data();
-          userDocId = snapNickname.docs[0].id;
+    const timeout = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error("Login timed out. Please check your connection.")), 20000)
+    );
+
+    const loginPromise = (async () => {
+      try {
+        if (useLocalFallback) {
+          console.warn("[Auth] Using local fallback for login");
+          throw new Error("Cloud connection is currently unstable. Please try again in a few minutes.");
+        }
+
+        let userDoc = null;
+        let userDocId = null;
+        const usersRef = collection(db, 'users');
+        
+        console.log("[Auth] Querying users...");
+        const qUsername = query(usersRef, where('username', '==', usernameOrMobile));
+        const snapUsername = await getDocs(qUsername);
+        if (!snapUsername.empty) {
+          userDoc = snapUsername.docs[0].data();
+          userDocId = snapUsername.docs[0].id;
         } else {
-          const qMobile = query(usersRef, where('mobileNumber', '==', usernameOrMobile));
-          const snapMobile = await getDocs(qMobile);
-          if (!snapMobile.empty) {
-            userDoc = snapMobile.docs[0].data();
-            userDocId = snapMobile.docs[0].id;
+          const qNickname = query(usersRef, where('nickname', '==', usernameOrMobile));
+          const snapNickname = await getDocs(qNickname);
+          if (!snapNickname.empty) {
+            userDoc = snapNickname.docs[0].data();
+            userDocId = snapNickname.docs[0].id;
+          } else {
+            const qMobile = query(usersRef, where('mobileNumber', '==', usernameOrMobile));
+            const snapMobile = await getDocs(qMobile);
+            if (!snapMobile.empty) {
+              userDoc = snapMobile.docs[0].data();
+              userDocId = snapMobile.docs[0].id;
+            }
           }
         }
+
+        if (!userDoc || !userDocId) {
+          throw new Error('Username or Mobile Number not found.');
+        }
+        
+        const status = userDoc.accountStatus || 'active';
+        if (status.toLowerCase() === 'disabled') {
+          throw new Error('Account Disabled. Please contact support.');
+        }
+
+        // Verify custom password hash
+        const inputHash = await hashPassword(pass);
+        if (userDoc.passwordHash && userDoc.passwordHash !== inputHash) {
+          throw new Error('Incorrect password.');
+        }
+
+        console.log("[Auth] Credentials verified, updating session...");
+        await updateDoc(doc(db, 'users', userDocId), { 
+          lastLogin: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        });
+
+        // Login custom session
+        localStorage.setItem('custom_auth_user', JSON.stringify({ uid: userDocId }));
+        setCurrentUser({ uid: userDocId, email: userDoc.email || '' } as any);
+        setUserProfile(userDoc as UserProfile);
+        syncTransactions(userDocId);
+        console.log("[Auth] Login completed successfully");
+      } catch (e: any) {
+        throw e;
       }
+    })();
 
-      if (!userDoc || !userDocId) {
-        throw new Error('Username or Mobile Number not found.');
-      }
-      
-      const status = userDoc.accountStatus || 'active';
-      if (status.toLowerCase() === 'disabled') {
-        throw new Error('Account Disabled. Please contact support.');
-      }
-
-      // Verify custom password hash
-      const inputHash = await hashPassword(pass);
-      if (userDoc.passwordHash && userDoc.passwordHash !== inputHash) {
-        throw new Error('Incorrect password.');
-      }
-
-      // Update last login
-      await updateDoc(doc(db, 'users', userDocId), { 
-        lastLogin: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      });
-
-      // Login custom session
-      localStorage.setItem('custom_auth_user', JSON.stringify({ uid: userDocId }));
-      setCurrentUser({ uid: userDocId, email: userDoc.email || '' } as any);
-      setUserProfile(userDoc as UserProfile);
-      syncTransactions(userDocId);
-
+    try {
+      await Promise.race([loginPromise, timeout]);
     } catch (e: any) {
+      console.error("[Auth] Login error:", e);
       const msg = e.message || 'An authentication error occurred.';
       setError(msg);
       throw new Error(msg);
@@ -1044,89 +1086,111 @@ const DEFAULT_LOADING_SCREEN: LoadingScreenSettings = {
     referralCode?: string
   ) => {
     setError(null);
+    console.log("[Auth] Starting registration for:", username);
+    
+    const timeout = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error("Registration timed out. Please check your connection.")), 20000)
+    );
+
+    const registrationPromise = (async () => {
+      try {
+        if (useLocalFallback) {
+          console.warn("[Auth] Registration attempted during local fallback");
+          throw new Error("Cloud connection is currently unstable. Please try again in a few minutes.");
+        }
+
+        const usersRef = collection(db, 'users');
+        
+        // Check username and nickname uniqueness
+        console.log("[Auth] Checking username uniqueness...");
+        const qNickname = query(usersRef, where('nickname', '==', username));
+        const snapNickname = await getDocs(qNickname);
+        const qUsername = query(usersRef, where('username', '==', username));
+        const snapUsername = await getDocs(qUsername);
+        if (!snapNickname.empty || !snapUsername.empty) {
+          throw new Error('Username already exists. Please choose a different one.');
+        }
+        
+        // Check mobile uniqueness
+        console.log("[Auth] Checking mobile uniqueness...");
+        const qMobile = query(usersRef, where('mobileNumber', '==', mobile));
+        const snapMobile = await getDocs(qMobile);
+        if (!snapMobile.empty) {
+          throw new Error('Mobile Number already exists.');
+        }
+
+        console.log("[Auth] All uniqueness checks passed");
+
+        // Generate hidden email format (saved in DB for backwards compatibility)
+        const hiddenEmail = `${username.toLowerCase().replace(/[^a-z0-9]/g, '')}_${Date.now()}@titanesp.app`;
+        const uid = `usr_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+
+        const uniqueReferral = 'TE-' + Math.random().toString(36).substring(2, 6).toUpperCase();
+        const passwordHash = await hashPassword(pass);
+        const depBal = referralCode ? 35 : 20;
+        const bonBal = referralCode ? 15 : 10;
+        const walletBal = depBal + bonBal;
+        const avatar = FF_AVATARS[Math.floor(Math.random() * FF_AVATARS.length)];
+
+        const initialProfile = {
+          uid: uid,
+          userId: uid,
+          email: hiddenEmail,
+          nickname: username,
+          username: username,
+          mobileNumber: mobile,
+          passwordHash: passwordHash,
+          freefireUid: '',
+          avatarUrl: avatar,
+          profileImage: avatar,
+          depositBalance: depBal,
+          winningBalance: 0,
+          bonusBalance: bonBal,
+          walletBalance: walletBal,
+          referralCode: uniqueReferral,
+          referredBy: referralCode || undefined,
+          totalMatches: 0,
+          totalWins: 0,
+          totalKills: 0,
+          totalEarnings: 0,
+          isNotificationEnabled: true,
+          joinedAt: new Date().toISOString(),
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          role: 'user',
+          accountStatus: 'active',
+          lastLogin: new Date().toISOString()
+        };
+
+        console.log("[Auth] Writing user profile to Firestore...");
+        await setDoc(doc(db, 'users', uid), initialProfile);
+        
+        console.log("[Auth] Adding initial transaction...");
+        await addDoc(collection(db, 'transactions'), {
+          userId: uid,
+          amount: referralCode ? 50 : 30,
+          type: 'referral_bonus',
+          paymentMethod: 'System',
+          dateTime: new Date().toISOString(),
+          status: 'completed',
+          description: referralCode ? 'Referred signup promo added!' : 'Sign up promotional balance added!'
+        });
+
+        console.log("[Auth] Registration successful, finishing up...");
+        // Login custom session
+        localStorage.setItem('custom_auth_user', JSON.stringify({ uid }));
+        setCurrentUser({ uid, email: hiddenEmail } as any);
+        setUserProfile(initialProfile as UserProfile);
+        syncTransactions(uid);
+      } catch (e: any) {
+        throw e;
+      }
+    })();
+
     try {
-      if (useLocalFallback) {
-        throw new Error("Local fallback not fully supported for this flow");
-      }
-
-      const usersRef = collection(db, 'users');
-      
-      // Check username and nickname uniqueness
-      const qNickname = query(usersRef, where('nickname', '==', username));
-      const snapNickname = await getDocs(qNickname);
-      const qUsername = query(usersRef, where('username', '==', username));
-      const snapUsername = await getDocs(qUsername);
-      if (!snapNickname.empty || !snapUsername.empty) {
-        throw new Error('Username already exists. Please choose a different one.');
-      }
-      
-      // Check mobile uniqueness
-      const qMobile = query(usersRef, where('mobileNumber', '==', mobile));
-      const snapMobile = await getDocs(qMobile);
-      if (!snapMobile.empty) {
-        throw new Error('Mobile Number already exists.');
-      }
-
-      // Generate hidden email format (saved in DB for backwards compatibility)
-      const hiddenEmail = `${username.toLowerCase().replace(/[^a-z0-9]/g, '')}_${Date.now()}@titanesp.app`;
-      const uid = `usr_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
-
-      const uniqueReferral = 'TE-' + Math.random().toString(36).substring(2, 6).toUpperCase();
-      const passwordHash = await hashPassword(pass);
-      const depBal = referralCode ? 35 : 20;
-      const bonBal = referralCode ? 15 : 10;
-      const walletBal = depBal + bonBal;
-      const avatar = FF_AVATARS[Math.floor(Math.random() * FF_AVATARS.length)];
-
-      const initialProfile = {
-        uid: uid,
-        userId: uid,
-        email: hiddenEmail,
-        nickname: username,
-        username: username,
-        mobileNumber: mobile,
-        passwordHash: passwordHash,
-        freefireUid: '',
-        avatarUrl: avatar,
-        profileImage: avatar,
-        depositBalance: depBal,
-        winningBalance: 0,
-        bonusBalance: bonBal,
-        walletBalance: walletBal,
-        referralCode: uniqueReferral,
-        referredBy: referralCode || undefined,
-        totalMatches: 0,
-        totalWins: 0,
-        totalKills: 0,
-        totalEarnings: 0,
-        isNotificationEnabled: true,
-        joinedAt: new Date().toISOString(),
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        role: 'user',
-        accountStatus: 'active',
-        lastLogin: new Date().toISOString()
-      };
-
-      await setDoc(doc(db, 'users', uid), initialProfile);
-      
-      await addDoc(collection(db, 'transactions'), {
-        userId: uid,
-        amount: referralCode ? 50 : 30,
-        type: 'referral_bonus',
-        paymentMethod: 'System',
-        dateTime: new Date().toISOString(),
-        status: 'completed',
-        description: referralCode ? 'Referred signup promo added!' : 'Sign up promotional balance added!'
-      });
-
-      // Login custom session
-      localStorage.setItem('custom_auth_user', JSON.stringify({ uid }));
-      setCurrentUser({ uid, email: hiddenEmail } as any);
-      setUserProfile(initialProfile as UserProfile);
-      syncTransactions(uid);
-      
+      await Promise.race([registrationPromise, timeout]);
     } catch (e: any) {
+      console.error("[Auth] Registration error:", e);
       const msg = e.message || 'An authentication error occurred.';
       setError(msg);
       throw new Error(msg);
@@ -1153,7 +1217,7 @@ const DEFAULT_LOADING_SCREEN: LoadingScreenSettings = {
         await signInWithRedirect(auth, googleProvider);
         return;
       } catch (err: any) {
-        console.error("Direct signInWithRedirect failed:");
+        console.error("Direct signInWithRedirect failed:", err);
         setError(err.message || "Failed to launch Google Redirect Sign-In.");
         throw err;
       }
@@ -1163,7 +1227,7 @@ const DEFAULT_LOADING_SCREEN: LoadingScreenSettings = {
       console.log("Attempting Google Popup Sign-In...");
       await signInWithPopup(auth, googleProvider);
     } catch (e: any) {
-      console.warn("Popup authentication failed or was blocked:");
+      console.warn("Popup authentication failed or was blocked:", e);
       const errCode = e?.code;
       const errMsg = e?.message || "";
       
